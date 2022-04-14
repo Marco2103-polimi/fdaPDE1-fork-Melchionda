@@ -67,6 +67,7 @@ class  RegressionData
 		void setTimeLocations(SEXP Rtime_locations);
 		void setCovariates(SEXP Rcovariates);
 		void setIncidenceMatrix(SEXP RincidenceMatrix);
+		void setWeights(SEXP Rweights);
 
 	public:
 		// -- CONSTRUCTORS --
@@ -90,11 +91,15 @@ class  RegressionData
 		        \param Rsearch an R-integer to decide the search algorithm type (tree or naive or walking search algorithm).
 		        \param Rtune an R-double parameter used in the computation of the GCV. The default value is 1.
 		        \param RarealDataAvg an R boolean indicating whether the areal data are averaged or not.
+			\param Rweights an R-vector containing the weights to use for weighted smoothing.
 
 
 		*/
 		explicit RegressionData(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder, SEXP Rcovariates,
 			SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch);
+
+		explicit RegressionData(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder, SEXP Rcovariates,
+			SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch, SEXP Rweights);
 
 		explicit RegressionData(SEXP Rlocations, SEXP RbaryLocations, SEXP Rtime_locations, SEXP Robservations, SEXP Rorder, SEXP Rcovariates,
 			SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rflag_mass, SEXP Rflag_parabolic, SEXP Rflag_iterative,SEXP Rmax_num_iteration, SEXP Rthreshold, SEXP Ric, SEXP Rsearch);
@@ -204,10 +209,15 @@ class  RegressionDataElliptic:public RegressionData
 		        \param RGCVmethod an R-integer indicating the method to use to compute the dofs when DOF is TRUE, can be either 1 (exact) or 2 (stochastic)
 		        \param Rnrealizations the number of random points used in the stochastic computation of the dofs
 		        \param Rsearch an R-integer to decide the search algorithm type (tree or naive or walking search algorithm).
+            \param Rweights an R-vector containing the weights to use for weighted smoothing.
 		*/
 		explicit RegressionDataElliptic(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
 			 SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
 			 SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch);
+
+		explicit RegressionDataElliptic(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
+			 SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
+			 SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch, SEXP Rweights);
 
 		explicit RegressionDataElliptic(SEXP Rlocations, SEXP RbaryLocations, SEXP Rtime_locations, SEXP Robservations, SEXP Rorder,
 			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
@@ -248,10 +258,15 @@ class RegressionDataEllipticSpaceVarying:public RegressionData
 	        	\param RGCVmethod an R-integer indicating the method to use to compute the dofs when DOF is TRUE, can be either 1 (exact) or 2 (stochastic)
 	        	\param Rnrealizations the number of random points used in the stochastic computation of the dofs
 	        	\param Rsearch an R-integer to decide the search algorithm type (tree or naive or walking search algorithm).
+            \param Rweights an R-vector containing the weights to use for weighted smoothing.
 		*/
 		explicit RegressionDataEllipticSpaceVarying(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
 			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Ru, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
 			SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch);
+
+		explicit RegressionDataEllipticSpaceVarying(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
+			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Ru, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
+			SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch, SEXP Rweights);
 
 		explicit RegressionDataEllipticSpaceVarying(SEXP Rlocations, SEXP RbaryLocations, SEXP Rtime_locations, SEXP Robservations, SEXP Rorder,
 			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Ru, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg,
