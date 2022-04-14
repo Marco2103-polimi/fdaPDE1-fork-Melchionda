@@ -1,4 +1,4 @@
-checkSmoothingParameters<-function(locations = NULL, observations, FEMbasis, covariates = NULL, PDE_parameters = NULL, BC = NULL, incidence_matrix = NULL, areal.data.avg = TRUE, search = 'tree', bary.locations = NULL, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1, lambda.optimization.tolerance = 0.05)
+checkSmoothingParameters<-function(locations = NULL, observations, FEMbasis, covariates = NULL, PDE_parameters = NULL, BC = NULL, incidence_matrix = NULL, areal.data.avg = TRUE, weights = NULL, search = 'tree', bary.locations = NULL, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1, lambda.optimization.tolerance = 0.05)
 {
   #################### Full Consistency Parameter Check #########################
 
@@ -55,7 +55,10 @@ checkSmoothingParameters<-function(locations = NULL, observations, FEMbasis, cov
   
   if(!is.null(PDE_parameters$u)){
     space_varying=TRUE
-    message("Smoothing: anysotropic and non-stationary case")
+    if(!is.null(weights))
+      message("Weighted smoothing: anysotropic and non-stationary case")
+    else
+      message("Smoothing: anysotropic and non-stationary case")
     
     if(!is.function(PDE_parameters$K))
       stop("'K' in 'PDE_parameters' is not a function")
@@ -67,11 +70,18 @@ checkSmoothingParameters<-function(locations = NULL, observations, FEMbasis, cov
       stop("'u' in 'PDE_parameters' is not a function")
   }
   else if(!is.null(PDE_parameters)){
-    message("Smoothing: anysotropic and stationary case")
+    if(!is.null(weights))
+      message("Weighted smoothing: anysotropic and stationary case")
+    else
+      message("Smoothing: anysotropic and stationary case")
   }
   
-  if(is.null(PDE_parameters))
-    message("Smoothing: isotropic and stationary case")
+  if(is.null(PDE_parameters)){
+    if(!is.null(weights))
+      message("Weighted smoothing: isotropic and stationary case")
+    else
+      message("Smoothing: isotropic and stationary case")
+  }
   
   # Boundary Conditions [BC]
   if(!is.null(BC)){
@@ -162,7 +172,7 @@ checkSmoothingParameters<-function(locations = NULL, observations, FEMbasis, cov
   return(space_varying)
 }
 
-checkSmoothingParametersSize<-function(locations = NULL, observations, FEMbasis, covariates = NULL, PDE_parameters = NULL, incidence_matrix = NULL, BC = NULL, space_varying = FALSE, ndim, mydim, lambda = NULL, DOF.matrix = NULL)
+checkSmoothingParametersSize<-function(locations = NULL, observations, FEMbasis, covariates = NULL, PDE_parameters = NULL, incidence_matrix = NULL, BC = NULL, weights = NULL, space_varying = FALSE, ndim, mydim, lambda = NULL, DOF.matrix = NULL)
 {
   #################### Parameter Check #########################
   # Observations
@@ -220,6 +230,12 @@ checkSmoothingParametersSize<-function(locations = NULL, observations, FEMbasis,
       if(sum(BC$BC_indices>nrow(nrow(FEMbasis$mesh$nodes))) > 0)
         stop("At least one index in 'BC_indices' larger then the number of 'nodes' in the mesh;")
     }
+  }
+  
+  # WEIGHTS
+  if(!is.null(weights)){
+    if(dim(weights)[1] != dim(observations)[1])
+      stop("'weights' should be a vector of the same length of 'observations'")
   }
   
   # PDE_parameters

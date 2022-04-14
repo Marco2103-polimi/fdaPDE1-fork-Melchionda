@@ -339,6 +339,7 @@
 smooth.FEM<-function(locations = NULL, observations, FEMbasis,
                      covariates = NULL, PDE_parameters = NULL, BC = NULL,
                      incidence_matrix = NULL, areal.data.avg = TRUE,
+                     weights = NULL,
                      search = "tree", bary.locations = NULL,
                      family = "gaussian", mu0 = NULL, scale.param = NULL, threshold.FPIRLS = 0.0002020, max.steps.FPIRLS = 15,
                      lambda.selection.criterion = "grid", DOF.evaluation = NULL, lambda.selection.lossfunction = NULL,
@@ -412,6 +413,10 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   if(family != 'gaussian'& optim[1]!=0)
     stop("'lambda.selection.criterion' = 'grid' is the only method implemented for GAM problems")
   
+  # WEIGHTED LEAST SQUARES CANNOT WORK WITH GAM
+  if(family != 'gaussian' & !is.null(weights))
+    stop("Weighted smoothing is implemented only for 'gaussian' family")
+  
   # --> General consistency rules
   if(optim[2]!=0 & optim[3]!=1)
   {
@@ -448,6 +453,10 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
 
   if(any(lambda<=0))
   	stop("'lambda' can not be less than or equal to 0")
+  
+  if(any(weights<=0))
+    stop("'weights' can not be less than or equal to 0")
+  
 
     # Search algorithm
   if(search=="naive"){
@@ -489,10 +498,13 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
     lambda = as.matrix(lambda)
   if(!is.null(DOF.matrix))
     DOF.matrix = as.matrix(DOF.matrix)
+  if(!is.null(weights))
+    weights = as.matrix(weights)
 
   space_varying = checkSmoothingParameters(locations = locations, observations = observations, FEMbasis = FEMbasis,
     covariates = covariates, PDE_parameters = PDE_parameters, BC = BC,
     incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+    weights = weights,
     search = search, bary.locations = bary.locations,
     optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
     DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -508,7 +520,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
 
   checkSmoothingParametersSize(locations = locations, observations = observations, FEMbasis = FEMbasis,
     covariates = covariates, PDE_parameters = PDE_parameters, incidence_matrix = incidence_matrix,
-    BC = BC, space_varying = space_varying, ndim = ndim, mydim = mydim,
+    BC = BC, weights = weights, space_varying = space_varying, ndim = ndim, mydim = mydim,
     lambda = lambda, DOF.matrix = DOF.matrix)
 
 
@@ -552,6 +564,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.FEM.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
         covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
         incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+        weights = weights,
         search = search, bary.locations = bary.locations,
         optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
         DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -562,6 +575,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.FEM.PDE.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
         covariates = covariates, PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
         incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+        weights = weights,
         search = search, bary.locations = bary.locations,
         optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed, 
         DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -572,6 +586,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.FEM.PDE.sv.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
         covariates=covariates, PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, BC=BC,
         incidence_matrix=incidence_matrix, areal.data.avg = areal.data.avg,
+        weights = weights,
         search=search, bary.locations = bary.locations,
         optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
         DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -584,6 +599,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.manifold.FEM.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
        covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
        incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+       weights = weights,
        search = search, bary.locations = bary.locations,
        optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
        DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -594,6 +610,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.volume.FEM.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
         covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
         incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+        weights = weights,
         search = search, bary.locations = bary.locations,
         optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
         DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -604,6 +621,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.volume.FEM.PDE.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
         covariates = covariates, PDE_parameters=PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
         incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+        weights = weights,
         search = search, bary.locations = bary.locations,
         optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
         DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -614,6 +632,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.volume.FEM.PDE.sv.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
         covariates = covariates, PDE_parameters=PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
         incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+        weights = weights,
         search = search, bary.locations = bary.locations,
         optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
         DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -624,6 +643,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   	  bigsol = CPP_smooth.graph.FEM.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
   	                                      covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
   	                                      incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+  	                                      weights = weights,
   	                                      search = search, bary.locations = bary.locations,
   	                                      optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
   	                                      DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -900,6 +920,9 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       lambda_vector = bigsol[[12]],
       GCV_vector = bigsol[[13]]
     )
+    
+    if(!is.null(weights))
+      optimization$weights = weights
 
     time = bigsol[[14]]
 

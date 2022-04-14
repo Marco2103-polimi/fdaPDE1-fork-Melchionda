@@ -1,4 +1,4 @@
-CPP_smooth.manifold.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = TRUE, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1, lambda.optimization.tolerance = 0.05)
+CPP_smooth.manifold.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = TRUE, weights = NULL, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1, lambda.optimization.tolerance = 0.05)
 {
 
   # Indexes in C++ starts from 0, in R from 1, opporGCV.inflation.factor transformation
@@ -51,6 +51,10 @@ CPP_smooth.manifold.FEM.basis<-function(locations, observations, FEMbasis, covar
   {
     lambda<-as.vector(lambda)
   }
+  
+  if(is.null(weights)){
+    weights<-matrix(nrow = 0, ncol = 1)
+  }
 
   ## Set propr type for correct C++ reading
   locations <- as.matrix(locations)
@@ -81,6 +85,7 @@ CPP_smooth.manifold.FEM.basis<-function(locations, observations, FEMbasis, covar
   storage.mode(DOF.stochastic.seed) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
   storage.mode(lambda.optimization.tolerance) <- "double"
+  storage.mode(weights) <- "double"
 
   ## Call C++ function
   bigsol <- .Call("regression_Laplace", locations, bary.locations, data, FEMbasis$mesh, FEMbasis$mesh$order, mydim, ndim, covariates,
