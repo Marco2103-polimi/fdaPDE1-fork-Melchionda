@@ -1,6 +1,7 @@
 CPP_smooth.graph.FEM.time<-function(locations, time_locations, observations, FEMbasis, time_mesh,
                                        covariates = NULL, ndim, mydim, BC = NULL,
                                        incidence_matrix = NULL, areal.data.avg = TRUE,
+                                       weights = NULL,
                                        FLAG_MASS, FLAG_PARABOLIC, FLAG_ITERATIVE, threshold = 10^(-4), max.steps = 50, IC,
                                        search, bary.locations, optim , lambdaS = NULL, lambdaT = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1, lambda.optimization.tolerance = 0.05)
 {
@@ -73,8 +74,12 @@ CPP_smooth.graph.FEM.time<-function(locations, time_locations, observations, FEM
     lambdaT<-as.vector(lambdaT)
   }
   
+  if(is.null(weights)){
+    weights<-matrix(nrow = 0, ncol = 1)
+  }
   
-  ## Set propr type for correct C++ reading
+  
+  ## Set proper type for correct C++ reading
   locations <- as.matrix(locations)
   storage.mode(locations) <- "double"
   time_locations <- as.matrix(time_locations)
@@ -120,6 +125,7 @@ CPP_smooth.graph.FEM.time<-function(locations, time_locations, observations, FEM
   storage.mode(DOF.stochastic.seed) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
   storage.mode(lambda.optimization.tolerance) <- "double"
+  storage.mode(weights) <- "double"
   
   ## Call C++ function
   ICsol=NA
@@ -146,7 +152,7 @@ CPP_smooth.graph.FEM.time<-function(locations, time_locations, observations, FEM
     ICsol <- .Call("regression_Laplace", locations, bary.locations, observations[1:NobsIC],
                    FEMbasis$mesh, FEMbasis$order, mydim, ndim, covariatesIC,
                    BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
-                   search, as.integer(c(0,2,1)), lambdaSIC, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor, lambda.optimization.tolerance, PACKAGE = "fdaPDE")
+                   search, as.integer(c(0,2,1)), lambdaSIC, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor, lambda.optimization.tolerance, weights, PACKAGE = "fdaPDE")
     
     ## shifting the lambdas interval if the best lambda is the smaller one and retry smoothing
     if(ICsol[[6]]==1)
@@ -157,7 +163,7 @@ CPP_smooth.graph.FEM.time<-function(locations, time_locations, observations, FEM
       ICsol <- .Call("regression_Laplace", locations, bary.locations, observations[1:NobsIC],
                      FEMbasis$mesh, FEMbasis$order, mydim, ndim, covariatesIC,
                      BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
-                     search, as.integer(c(0,2,1)), lambdaSIC, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor, lambda.optimization.tolerance, PACKAGE = "fdaPDE")
+                     search, as.integer(c(0,2,1)), lambdaSIC, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor, lambda.optimization.tolerance, weights, PACKAGE = "fdaPDE")
     }
     else
     {
@@ -170,7 +176,7 @@ CPP_smooth.graph.FEM.time<-function(locations, time_locations, observations, FEM
         ICsol <- .Call("regression_Laplace", locations, bary.locations, observations[1:NobsIC],
                        FEMbasis$mesh, FEMbasis$order, mydim, ndim, covariatesIC,
                        BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
-                       search, as.integer(c(0,2,1)), lambdaSIC, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,lambda.optimization.tolerance, PACKAGE = "fdaPDE")
+                       search, as.integer(c(0,2,1)), lambdaSIC, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,lambda.optimization.tolerance, weights, PACKAGE = "fdaPDE")
       }
     }
     
@@ -202,7 +208,7 @@ CPP_smooth.graph.FEM.time<-function(locations, time_locations, observations, FEM
   
   bigsol <- .Call("regression_Laplace_time", locations, bary.locations, time_locations, observations, FEMbasis$mesh, time_mesh, FEMbasis$order,
                   mydim, ndim, covariates, BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg, FLAG_MASS, FLAG_PARABOLIC, FLAG_ITERATIVE, max.steps, threshold,
-                  IC, search, optim, lambdaS, lambdaT, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, PACKAGE = "fdaPDE")
+                  IC, search, optim, lambdaS, lambdaT, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, weights, PACKAGE = "fdaPDE")
   
   return(c(bigsol,ICsol))
 }

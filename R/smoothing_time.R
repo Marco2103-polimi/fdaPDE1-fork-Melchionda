@@ -151,6 +151,7 @@ NULL
 smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations, FEMbasis, time_mesh=NULL,
                           covariates = NULL, PDE_parameters = NULL,  BC = NULL,
                           incidence_matrix = NULL, areal.data.avg = TRUE,
+                          weights = NULL,
                           FLAG_MASS = FALSE, FLAG_PARABOLIC = FALSE,FLAG_ITERATIVE = FALSE, threshold = 10^(-4), max.steps = 50, IC = NULL,
                           search = "tree", bary.locations = NULL,
                           family = "gaussian", mu0 = NULL, scale.param = NULL,
@@ -223,6 +224,9 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
   
   if(any(lambdaS<=0) || any(lambdaT<=0))
     stop("'lambda' can not be less than or equal to 0")
+  
+  if(any(weights<=0))
+    stop("'weights' can not be less than or equal to 0")
   
   if(optim[2]!=0 & optim[3]!=1)
   {
@@ -301,10 +305,13 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     lambdaS = as.matrix(lambdaS)
   if(!is.null(lambdaT))
     lambdaT = as.matrix(lambdaT)
+  if(!is.null(weights))
+    weights = as.matrix(weights)
   
   space_varying = checkSmoothingParameters_time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh = time_mesh,
                   covariates = covariates, PDE_parameters = PDE_parameters, BC = BC, 
                   incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg, 
+                  weights=weights,
                   FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC,FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, max.steps = max.steps, IC = IC,
                   search = search, bary.locations = bary.locations,
                   optim = optim, 
@@ -321,7 +328,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
 
   checkSmoothingParametersSize_time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh = time_mesh,
     covariates = covariates, PDE_parameters = PDE_parameters, incidence_matrix = incidence_matrix,
-    BC = BC, space_varying = space_varying, ndim = ndim, mydim = mydim,
+    BC = BC, weights=weights, space_varying = space_varying, ndim = ndim, mydim = mydim,
     FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC, IC = IC,
     lambdaS = lambdaS, lambdaT = lambdaT, DOF.matrix = DOF.matrix)
   
@@ -366,7 +373,10 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
   # OPTIMIZATION NOT IMPLEMENTED FOR GAM
   if (family != 'gaussian' & optim[1] != 0)
   	stop("'lambda.selection.criterion' = 'grid' is the only method implemented for GAM problems")
-
+  
+  # WEIGHTED LEAST SQUARES CANNOT WORK WITH GAM
+  if(family != 'gaussian' & !is.null(weights))
+    stop("Weighted smoothing is implemented only for 'gaussian' family")
 
   # FAMILY CHECK
   family_admit = c("binomial", "exponential", "gamma", "poisson", "gaussian", "Gaussian")
@@ -383,6 +393,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     bigsol = CPP_smooth.FEM.time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh=time_mesh,
       covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
       incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+      weights = weights,
       FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC,FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold , max.steps = max.steps, IC = IC,
       search = search, bary.locations = bary.locations,
       optim = optim, lambdaS = lambdaS, lambdaT = lambdaT, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed, DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -392,6 +403,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     bigsol = CPP_smooth.FEM.PDE.time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh=time_mesh,
        covariates = covariates, PDE_parameters=PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
        incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+       weights = weights,
        FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC,FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, max.steps = max.steps, IC = IC,
        search = search, bary.locations = bary.locations,
        optim = optim, lambdaS = lambdaS, lambdaT = lambdaT, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed, DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -402,6 +414,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     bigsol = CPP_smooth.FEM.PDE.sv.time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh=time_mesh,
       covariates = covariates, PDE_parameters=PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
       incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+      weights = weights,
       FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC,FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, max.steps = max.steps, IC = IC,
       search = search, bary.locations = bary.locations,
       optim = optim, lambdaS = lambdaS, lambdaT = lambdaT, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed, DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -411,6 +424,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     bigsol = CPP_smooth.manifold.FEM.time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh=time_mesh,
       covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
       incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+      weights = weights,
       FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC,FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold , max.steps = max.steps, IC = IC,
       search = search, bary.locations = bary.locations,
       optim = optim, lambdaS = lambdaS, lambdaT = lambdaT, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed, DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -420,6 +434,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     bigsol = CPP_smooth.volume.FEM.time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh=time_mesh,
       covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
       incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+      weights = weights,
       FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC,FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold , max.steps = max.steps, IC = IC,
       search = search, bary.locations = bary.locations,
       optim = optim, lambdaS = lambdaS, lambdaT = lambdaT, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed, DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -429,6 +444,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     bigsol = CPP_smooth.graph.FEM.time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh=time_mesh,
                                           covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
                                           incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+                                          weights = weights,
                                           FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC,FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold , max.steps = max.steps, IC = IC,
                                           search = search, bary.locations = bary.locations,
                                           optim = optim, lambdaS = lambdaS, lambdaT = lambdaT, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed, DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
@@ -526,6 +542,9 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     lambda_vector = matrix(c(bigsol[[21]], bigsol[[22]]), nrow=length(lambdaS)*length(lambdaT), ncol=2),
     GCV_vector = GCV_
   )
+  
+  if(!is.null(weights))
+    optimization$weights = weights
 
   time = bigsol[[23]]
 

@@ -58,7 +58,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"get_integration_points",            (DL_FUNC) &get_integration_points,             4},
     {"points_projection",                 (DL_FUNC) &points_projection,                  4},
     {"R_triangulate_native",              (DL_FUNC) &R_triangulate_native,               8},
-    {"regression_Laplace",                (DL_FUNC) &regression_Laplace,                24},
+    {"regression_Laplace",                (DL_FUNC) &regression_Laplace,                21},
     {"regression_Laplace_time",           (DL_FUNC) &regression_Laplace_time,           29},
     {"regression_PDE",                    (DL_FUNC) &regression_PDE,                    24},
     {"regression_PDE_space_varying",      (DL_FUNC) &regression_PDE_space_varying,      25},
