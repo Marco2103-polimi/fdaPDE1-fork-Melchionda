@@ -356,8 +356,8 @@ checkSmoothingParametersSize_time<-function(locations = NULL, time_locations = N
   
   # WEIGHTS
   if(!is.null(weights)){
-    if(dim(weights)[1] != dim(observations)[1])
-      stop("'weights' should be a vector of the same length of 'observations'")
+    if(nrow(weights) != nrow(observations)*ncol(observations))
+      stop("'weights' should be a matrix of the same dimension of 'observations'")
   }
 
   # IC

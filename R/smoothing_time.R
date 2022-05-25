@@ -305,8 +305,10 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     lambdaS = as.matrix(lambdaS)
   if(!is.null(lambdaT))
     lambdaT = as.matrix(lambdaT)
-  if(!is.null(weights))
-    weights = as.matrix(weights)
+  if(!is.null(weights)){
+    weights = matrix(weights, ncol=1)
+  }
+  
   
   space_varying = checkSmoothingParameters_time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh = time_mesh,
                   covariates = covariates, PDE_parameters = PDE_parameters, BC = BC, 

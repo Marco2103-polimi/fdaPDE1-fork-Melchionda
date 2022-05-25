@@ -88,7 +88,7 @@ RegressionData::RegressionData(SEXP Rlocations, SEXP RbaryLocations, SEXP Rtime_
 		RegressionData(Rlocations, RbaryLocations, Rtime_locations, Robservations, Rorder, Rcovariates, RBCIndices, RBCValues,
 					RincidenceMatrix, RarealDataAvg, Rflag_mass, Rflag_parabolic,Rflag_iterative, Rmax_num_iteration, Rthreshold, Ric, Rsearch)
 {
-	setWeightsTime(Rweights);
+	setWeights(Rweights);
 }
 
 
@@ -305,19 +305,6 @@ void RegressionData::setWeights(SEXP Rweights)
 	for(auto i=0;i<n_obs_;++i)
 	{
 		WeightsMatrix_[i] = REAL(Rweights)[i];
-	}
-}
-
-void RegressionData::setWeightsTime(SEXP Rweights)
-{
-	UInt n_obs_ = Rf_length(Rweights);
-	WeightsMatrix_.resize(n_obs_ * time_locations_.size());
-
-	for(auto i=0;i<n_obs_;++i)
-	{
-		for(auto j=0; j<time_locations_.size(); ++j){
-			WeightsMatrix_[i + j*n_obs_] = REAL(Rweights)[i];
-		}
 	}
 }
 
