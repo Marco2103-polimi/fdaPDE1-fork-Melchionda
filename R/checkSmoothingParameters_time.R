@@ -5,13 +5,13 @@ checkSmoothingParameters_time<-function(locations = NULL, time_locations=NULL, o
   # Mesh type and methods
   if(is.null(FEMbasis))
     stop("FEMbasis required;  is NULL.")
-  if(class(FEMbasis)!= "FEMbasis")
+  if(!is(FEMbasis, "FEMbasis"))
     stop("'FEMbasis' is not class 'FEMbasis'")
 
-  if(class(FEMbasis$mesh)!='mesh.2D' & class(FEMbasis$mesh) != "mesh.2.5D" & class(FEMbasis$mesh) != "mesh.3D" & class(FEMbasis$mesh) != "mesh.1.5D")
+  if(!is(FEMbasis$mesh, "mesh.2D") & !is(FEMbasis$mesh, "mesh.2.5D") & !is(FEMbasis$mesh, "mesh.3D") & !is(FEMbasis$mesh, "mesh.1.5D"))
     stop('Unknown mesh class')
 
-  if((class(FEMbasis$mesh) == "mesh.2.5D" || class(FEMbasis$mesh) == "mesh.3D" || class(FEMbasis$mesh) == "mesh.1.5D") & !is.null(PDE_parameters) )
+  if((is(FEMbasis$mesh, "mesh.2.5D") || is(FEMbasis$mesh, "mesh.1.5D")) & !is.null(PDE_parameters) ) # || class(FEMbasis$mesh) == "mesh.3D" ||
     stop('For mesh classes different from mesh.2D, anysotropic regularization is not yet implemented.
          Use Laplacian regularization instead')
 
@@ -324,13 +324,13 @@ checkSmoothingParametersSize_time<-function(locations = NULL, time_locations = N
   {
     if (nrow(incidence_matrix) != nrow(observations))
       stop("'incidence_matrix' and 'observations' have incompatible size;")
-    if (class(FEMbasis$mesh) == 'mesh.2D' && ncol(incidence_matrix) != nrow(FEMbasis$mesh$triangles))
+    if (is(FEMbasis$mesh, "mesh.2D") && ncol(incidence_matrix) != nrow(FEMbasis$mesh$triangles))
       stop("'incidence_matrix' must be a ntriangles-columns matrix;")
-    else if (class(FEMbasis$mesh) == 'mesh.2.5D' && ncol(incidence_matrix) != nrow(FEMbasis$mesh$triangles))
+    else if (is(FEMbasis$mesh, "mesh.2.5D") && ncol(incidence_matrix) != nrow(FEMbasis$mesh$triangles))
       stop("'incidence_matrix' must be a ntriangles-columns matrix;")
-    else if (class(FEMbasis$mesh) == 'mesh.3D' && ncol(incidence_matrix) != nrow(FEMbasis$mesh$tetrahedrons))
+    else if (is(FEMbasis$mesh, "mesh.3D") && ncol(incidence_matrix) != nrow(FEMbasis$mesh$tetrahedrons))
       stop("'incidence_matrix' must be a ntetrahedrons-columns matrix;")
-    else if (class(FEMbasis$mesh) == 'mesh.1.5D' && ncol(incidence_matrix) != nrow(FEMbasis$mesh$edges))
+    else if (is(FEMbasis$mesh, "mesh.1.5D") && ncol(incidence_matrix) != nrow(FEMbasis$mesh$edges))
       stop("'incidence_matrix' must be a nedges-columns matrix;")
   }
 
@@ -384,10 +384,10 @@ checkSmoothingParametersSize_time<-function(locations = NULL, time_locations = N
   # PDE_parameters
   if(!is.null(PDE_parameters) & space_varying==FALSE)
   {
-    if(!all.equal(dim(PDE_parameters$K), c(2,2)))
-      stop("'K' in 'PDE_parameters must be a 2x2 matrix")
-    if(!all.equal(dim(PDE_parameters$b), c(2,1)))
-      stop("'b' in 'PDE_parameters must be a column vector of size 2")
+    if(!all.equal(dim(PDE_parameters$K), c(ndim,ndim)))
+      stop("'K' in 'PDE_parameters must be a 2x2 matrix or 3x3 matrix")
+    if(!all.equal(dim(PDE_parameters$b), c(ndim,1)))
+      stop("'b' in 'PDE_parameters must be a column vector of size 2 or 3")
     if(!all.equal(dim(PDE_parameters$c), c(1,1)))
       stop("'c' in 'PDE_parameters must be a double")
   }
@@ -405,12 +405,12 @@ checkSmoothingParametersSize_time<-function(locations = NULL, time_locations = N
 
     if(!is.numeric(try_K_func))
       stop("Test on function 'K' in 'PDE_parameters' not passed; output is not numeric")
-    if(!all.equal(dim(try_K_func), c(2,2,n_test_points)) )
+    if(!all.equal(dim(try_K_func), c(ndim,ndim,n_test_points)) )
       stop("Test on function 'K' in 'PDE_parameters' not passed; wrong size of the output")
 
     if(!is.numeric(try_b_func))
       stop("Test on function 'b' in 'PDE_parameters' not passed; output is not numeric")
-    if(!all.equal(dim(try_b_func), c(2,n_test_points)))
+    if(!all.equal(dim(try_b_func), c(ndim,n_test_points)))
       stop("Test on function 'b' in 'PDE_parameters' not passed; wrong size of the output")
 
     if(!is.numeric(try_c_func))
