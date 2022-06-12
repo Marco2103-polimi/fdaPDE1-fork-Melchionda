@@ -33,7 +33,7 @@ SEXP GAM_skeleton_time(InputHandler &GAMData,
     // read scale param
     Real scale_parameter = REAL(RscaleParam)[0];
     // Factory:
-    std::unique_ptr<FPIRLS<InputHandler, ORDER, mydim, ndim>> fpirls =
+    std::unique_ptr<FPIRLS_GAM<InputHandler, ORDER, mydim, ndim>> fpirls =
         FPIRLSfactory<InputHandler, ORDER, mydim, ndim>::createFPIRLSsolver(
             family, mesh, mesh_time, GAMData, optimizationData, mu0,
             scale_parameter);

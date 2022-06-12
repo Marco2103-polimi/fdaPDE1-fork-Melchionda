@@ -8,13 +8,10 @@
 
 // Constructor
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDER,mydim,ndim> & mesh, InputHandler & inputData, OptimizationData & optimizationData,  VectorXr mu0, bool scale_parameter_flag, Real scale_param):
-  mesh_(mesh), inputData_(inputData), optimizationData_(optimizationData), regression_(inputData, optimizationData, mesh.num_nodes()), lenS_(optimizationData.get_size_S()), lenT_(optimizationData.get_size_T()), scale_parameter_flag_(scale_parameter_flag), _scale_param(scale_param)
+FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDER,mydim,ndim> & mesh, InputHandler & inputData, OptimizationData & optimizationData):
+  mesh_(mesh), inputData_(inputData), optimizationData_(optimizationData), regression_(inputData, optimizationData, mesh.num_nodes()), lenS_(optimizationData.get_size_S()), lenT_(optimizationData.get_size_T())
 {
   //Pre-allocate memory for all quatities
-  mu_.resize(lenS_, std::vector<VectorXr>(lenT_));
-  pseudoObservations_.resize(lenS_, std::vector<VectorXr>(lenT_));
-  G_.resize(lenS_, std::vector<VectorXr>(lenT_));
   WeightsMatrix_.resize(lenS_, std::vector<VectorXr>(lenT_));
   current_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
   past_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
@@ -22,10 +19,9 @@ FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDE
   _J_minima.resize(lenS_, std::vector<Real>(lenT_));
   _GCV.resize(lenS_, std::vector<Real>(lenT_, -1));
   
-  //initialization of mu, current_J_values and past_J_values.
+  //initialization of current_J_values and past_J_values.
   for(UInt i=0; i<optimizationData_.get_size_S() ; i++){
    for(UInt j=0; j<optimizationData_.get_size_T() ; j++){
-    mu_[i][j] = mu0;
     current_J_values[i][j] = std::array<Real,2>{1,1};
     past_J_values[i][j] = std::array<Real,2>{1,1};
    }
@@ -33,13 +29,10 @@ FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDE
 };
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDER,mydim,ndim> & mesh, const std::vector<Real>& mesh_time, InputHandler & inputData, OptimizationData & optimizationData,  VectorXr mu0, bool scale_parameter_flag, Real scale_param):
-  mesh_(mesh), mesh_time_(mesh_time), inputData_(inputData), optimizationData_(optimizationData), regression_(mesh_time, inputData, optimizationData, mesh.num_nodes()), lenS_(optimizationData.get_size_S()), lenT_(optimizationData.get_size_T()), scale_parameter_flag_(scale_parameter_flag), _scale_param(scale_param)
+FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDER,mydim,ndim> & mesh, const std::vector<Real>& mesh_time, InputHandler & inputData, OptimizationData & optimizationData):
+  mesh_(mesh), mesh_time_(mesh_time), inputData_(inputData), optimizationData_(optimizationData), regression_(mesh_time, inputData, optimizationData, mesh.num_nodes()), lenS_(optimizationData.get_size_S()), lenT_(optimizationData.get_size_T())
 {
   //Pre-allocate memory for all quatities
-  mu_.resize(lenS_, std::vector<VectorXr>(lenT_));
-  pseudoObservations_.resize(lenS_, std::vector<VectorXr>(lenT_));
-  G_.resize(lenS_, std::vector<VectorXr>(lenT_));
   WeightsMatrix_.resize(lenS_, std::vector<VectorXr>(lenT_));
   current_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
   past_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
@@ -50,7 +43,6 @@ FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDE
   //initialization of mu, current_J_values and past_J_values.
   for(UInt i=0; i<optimizationData_.get_size_S() ; i++){
    for(UInt j=0; j<optimizationData_.get_size_T() ; j++){
-    mu_[i][j] = mu0;
     current_J_values[i][j] = std::array<Real,2>{1,1};
     past_J_values[i][j] = std::array<Real,2>{1,1};
    }
@@ -58,6 +50,7 @@ FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDE
 };
 
 // FPIRLS_base methods
+
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::apply( const ForcingTerm& u){
   // f-PRILS implementation
@@ -87,16 +80,14 @@ void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::apply( const ForcingTerm& u){
     while(stopping_criterion(i, j)){
 
       // STEP (1)
-      compute_G(i, j);
-      compute_Weights(i, j);
-      compute_pseudoObs(i, j);
+      // Compute the weights and other auxiliary quantities
+      prepare_weighted_regression(i, j);
 
       // STEP (2)
-      this->inputData_.updatePseudodata(pseudoObservations_[i][j], WeightsMatrix_[i][j]);
-      update_solution(i, j);
+      solve_weighted_regression(i, j);
 
       // STEP (3)
-      compute_mu(i, j);
+      update_parameters(i, j);
 
       // update J
       past_J_values[i][j] = current_J_values[i][j];
@@ -132,12 +123,12 @@ void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::apply( const ForcingTerm& u){
   } // end time for
  }// end space for
 
-  // Variance Estimate
-  compute_variance_est();
+  // Additional estimates
+  additional_estimates();
 }
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::update_solution(const UInt& lambdaS_index, const UInt& lambdaT_index){
+void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::solve_weighted_regression(const UInt& lambdaS_index, const UInt& lambdaT_index){
   // performs step (2) of PIRLS. It requires pseudo data after step(1) and mimic regression skeleton behaviour
 
   // Here we have to solve a weighted regression problem.
@@ -163,71 +154,6 @@ void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::update_solution(const UInt& l
 
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_pseudoObs(const UInt& lambdaS_index, const UInt& lambdaT_index){
-  // compute pseudodata observations
-
-  VectorXr first_addendum; // G_ii( z_i - mu_i)
-  VectorXr g_mu; // g( mu_i )
-
-  const VectorXr * z = inputData_.getInitialObservations();
-
-  first_addendum.resize(mu_[lambdaS_index][lambdaT_index].size());
-  g_mu.resize(mu_[lambdaS_index][lambdaT_index].size());
-
-  //compute the vecotr first_addendum and g_mu
-  for(auto i=0; i < mu_[lambdaS_index][lambdaT_index].size(); i++){
-    g_mu(i) = link(mu_[lambdaS_index][lambdaT_index](i));
-    first_addendum(i) = G_[lambdaS_index][lambdaT_index](i)*((*z)(i)-mu_[lambdaS_index][lambdaT_index](i));
-  }
-
-  pseudoObservations_[lambdaS_index][lambdaT_index] = first_addendum + g_mu;
-
-}
-
-
-template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_G(const UInt& lambdaS_index, const UInt& lambdaT_index){
-  // compute the G matrix as G_ii = diag( g'(mu_i))
-
-  G_[lambdaS_index][lambdaT_index].resize(mu_[lambdaS_index][lambdaT_index].size());
-
-  for(UInt i = 0; i<mu_[lambdaS_index][lambdaT_index].size(); i++){
-    G_[lambdaS_index][lambdaT_index](i) = link_deriv(mu_[lambdaS_index][lambdaT_index](i));
-  }
-
-}
-
-
-template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_Weights(const UInt& lambdaS_index, const UInt& lambdaT_index){
-  // computed W elementwise (it is a diagonal matrix)
-
-  WeightsMatrix_[lambdaS_index][lambdaT_index].resize( mu_[lambdaS_index][lambdaT_index].size());
-
-  for(auto i=0; i < mu_[lambdaS_index][lambdaT_index].size(); i++){
-    WeightsMatrix_[lambdaS_index][lambdaT_index](i) = 1/(pow(G_[lambdaS_index][lambdaT_index](i),2)*(var_function( mu_[lambdaS_index][lambdaT_index](i))));
-  }
-
-}
-
-
-template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_mu(const UInt& lambdaS_index, const UInt& lambdaT_index){
-  //compute mu as mu_i = g-1( w_ii*beta + fn_hat)
-
-  VectorXr W_beta = VectorXr::Zero(mu_[lambdaS_index][lambdaT_index].size()); // initialize the vector w_ii*beta
-
-  if(inputData_.getCovariates()->rows()>0)
-    W_beta = (*(inputData_.getCovariates()))*_beta_hat(lambdaS_index,lambdaT_index);
-
-  for(UInt j=0; j < W_beta.size(); j++){
-      mu_[lambdaS_index][lambdaT_index](j) = inv_link(W_beta[j] + _fn_hat(lambdaS_index,lambdaT_index)(j));
-  }
-
-}
-
-
-template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 bool FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::stopping_criterion(const UInt& lambdaS_index, const UInt& lambdaT_index){
   // return true if the f-PIRLS has to perform another iteration, false if it has to be stopped
 
@@ -247,135 +173,20 @@ bool FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::stopping_criterion(const UInt
   return !(do_stop_by_iteration || do_stop_by_treshold );
 }
 
-template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-std::array<Real,2> FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index){
-  // compute the functional J: it is divided in parametric and non parametric part
-  Real parametric_value = 0;
-  Real non_parametric_value = 0;
-  Real tmp;
-
-
-  VectorXr Lf;
-
-  const VectorXr * z = inputData_.getInitialObservations();
-
-  for(UInt i=0; i < mu_.size(); i++){
-    tmp =std::sqrt( var_function( mu_[lambdaS_index][lambdaT_index](i)) ) * ((*z)(i) - mu_[lambdaS_index][lambdaT_index](i)) ;
-    parametric_value += tmp*tmp;
-  }
-
-  Lf.resize(_solution(lambdaS_index,lambdaT_index).size()/2);
-  for(UInt i=0; i< Lf.size(); i++){
-    Lf(i) = _solution(lambdaS_index, lambdaT_index)(Lf.size() + i);
-  }
-
-  if(isSpaceVarying)
-  {
-      if( inputData_.isSpaceTime() ){
-     
-       UInt M_ =  regression_.getM_();
-       UInt N_ = regression_.getN_();
-      
-       VectorXr forcingTerm_correction_;
-       forcingTerm_correction_.resize(M_*N_); // New size
-      
-       for(UInt i=0; i<N_; i++) // Update forcing term (i.e. repeat identically M_ times)
-       {
-       	for(UInt j=0; j<M_; j++)
-        {
-         forcingTerm_correction_(i+j*N_) = forcingTerm(i);
-        }
-       }
-      
-      	Lf = Lf - forcingTerm_correction_;
-      }
-      else{
-      	Lf = Lf - forcingTerm;
-      }
-  }
-  
-  SpMat Int;
-  std::array<Real, 2> lambdaST = {
-  	(*optimizationData_.get_LambdaS_vector())[lambdaS_index],
-        (*optimizationData_.get_LambdaT_vector())[lambdaT_index]};
-  if (inputData_.isSpaceTime()) {
-  	UInt correction_size = inputData_.getFlagParabolic() ? -1 : +2;
-        VectorXr intcoef(mesh_time_.size() + correction_size);
-        intcoef.setConstant(mesh_time_[1] - mesh_time_[0]);
-        intcoef(0) *= 0.5;
-        SpMat IN(mesh_.num_nodes(), mesh_.num_nodes());
-        IN.setIdentity();
-        SpMat tmp = intcoef.asDiagonal().toDenseMatrix().sparseView();
-        tmp = kroneckerProduct(tmp, IN);
-        Int.resize(tmp.rows(), tmp.cols());
-        Int = lambdaST[0] * (*regression_.getR0_()) * tmp;
-    } else {
-        Int.resize(mesh_.num_nodes(), mesh_.num_nodes());
-        Int = lambdaST[0] * (*regression_.getR0_());
-    }
-    
-  non_parametric_value = Lf.transpose() * Int * Lf;
-  
-  std::array<Real,2> returnObject{parametric_value, non_parametric_value};
-
-  return returnObject;
-}
+//template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+//std::array<Real,2> FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index){
+//  // compute the functional J: it is divided in parametric and non parametric part
+//  return std::array<Real,2>{1,1};
+//}
 
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UInt& lambdaS_index, const UInt& lambdaT_index){
 
-        if (optimizationData_.get_DOF_evaluation() != "not_required") //in this case surely we have already the dofs
-        { // is DOF_matrix to be computed?
-        regression_.computeDegreesOfFreedom(0, 0, (*optimizationData_.get_LambdaS_vector())[lambdaS_index],
-        					  (*optimizationData_.get_LambdaT_vector())[lambdaT_index]);
-        _dof(lambdaS_index, lambdaT_index) = regression_.getDOF()(0,0);
-        }
-        else _dof(lambdaS_index, lambdaT_index) = regression_.getDOF()(lambdaS_index, lambdaT_index);
- 
-        const VectorXr * y = inputData_.getInitialObservations();
-        Real GCV_value = 0;
-
-        for(UInt j=0; j < y->size();j++)
-        GCV_value += dev_function(mu_[lambdaS_index][lambdaT_index][j], (*y)[j]); //norm computation
-
-        GCV_value *= y->size();
-
-        GCV_value /= (y->size()-optimizationData_.get_tuning()*_dof(lambdaS_index,lambdaT_index))*(y->size()-optimizationData_.get_tuning()*_dof(lambdaS_index,lambdaT_index));
-
-        _GCV[lambdaS_index][lambdaT_index] = GCV_value;
-
-        //best lambda
-        if(GCV_value < optimizationData_.get_best_value())
-        {
-        optimizationData_.set_best_lambda_S(lambdaS_index);
-        optimizationData_.set_best_lambda_T(lambdaT_index);
-        optimizationData_.set_best_value(GCV_value);
-        }
+        return;
 
 }
 
-template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_variance_est(){
-  Real phi;
-  if(this->scale_parameter_flag_ && this->optimizationData_.get_loss_function()!="GCV"){// if scale param should be
-    _variance_estimates.resize(lenS_, std::vector<Real>(lenT_, 0.0));
-    const UInt n_obs = this->inputData_.getObservations()->size();
-
-    //scale parameter computed as: mean((var.link(mu)*phi)/mu), and phi is computed as in Wood IGAM
-    for(UInt i=0; i < lenS_;i++){
-    	for(UInt j=0; j< lenT_; j++){ 
-		phi = (this->scale_parameter_flag_ )? this->current_J_values[i][j][0]/(n_obs - this->_dof(i,j) ) : _scale_param;
-		for(UInt k=0; k < this->mu_[i][j].size(); k++){
-        	_variance_estimates[i][j] += phi* this->var_function(this->mu_[i][j](k))/this->mu_[i][j](k);
-      }
-      _variance_estimates[i][j] /= this->mu_[i][j].size();
-    }
-   }
-  }else{
-    _variance_estimates.resize(lenS_, std::vector<Real>(lenT_,-1));
-  }
-}
 
 /*********** FPIRLS apply template specialization ************/
 
@@ -395,6 +206,272 @@ void FPIRLS<GAMDataEllipticSpaceVarying,ORDER, mydim, ndim>::apply(){
   FPIRLS_Base<GAMDataEllipticSpaceVarying,ORDER, mydim, ndim>::apply(this->inputData_.getU());
 
 }
+
+/*********** FPIRLS_GAM Methods ************/
+
+// Constructor
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::FPIRLS_GAM(const MeshHandler<ORDER,mydim,ndim> & mesh, InputHandler & inputData, OptimizationData & optimizationData,  VectorXr mu0, bool scale_parameter_flag, Real scale_param):
+  	  FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, inputData, optimizationData), scale_parameter_flag_(scale_parameter_flag), _scale_param(scale_param)
+{
+  //Pre-allocate memory for all quatities
+  mu_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+  pseudoObservations_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+  G_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+  
+  //initialization of mu, current_J_values and past_J_values.
+  for(UInt i=0; i<this->optimizationData_.get_size_S() ; i++){
+   for(UInt j=0; j<this->optimizationData_.get_size_T() ; j++){
+    mu_[i][j] = mu0;
+   }
+  }
+};
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::FPIRLS_GAM(const MeshHandler<ORDER,mydim,ndim> & mesh, const std::vector<Real>& mesh_time, InputHandler & inputData, OptimizationData & optimizationData,  VectorXr mu0, bool scale_parameter_flag, Real scale_param):
+	FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, mesh_time, inputData, optimizationData), scale_parameter_flag_(scale_parameter_flag), _scale_param(scale_param)
+{
+  //Pre-allocate memory for all quatities
+  mu_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+  pseudoObservations_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+  G_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+  
+  //initialization of mu, current_J_values and past_J_values.
+  for(UInt i=0; i<this->optimizationData_.get_size_S() ; i++){
+   for(UInt j=0; j<this->optimizationData_.get_size_T() ; j++){
+    mu_[i][j] = mu0;
+   }
+  }
+};
+
+
+// FPIRLS_GAM methods
+
+// STEP (1) methods
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_G(const UInt& lambdaS_index, const UInt& lambdaT_index){
+  // compute the G matrix as G_ii = diag( g'(mu_i))
+
+  G_[lambdaS_index][lambdaT_index].resize(mu_[lambdaS_index][lambdaT_index].size());
+
+  for(UInt i = 0; i<mu_[lambdaS_index][lambdaT_index].size(); i++){
+    G_[lambdaS_index][lambdaT_index](i) = link_deriv(mu_[lambdaS_index][lambdaT_index](i));
+  }
+
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_pseudoObs(const UInt& lambdaS_index, const UInt& lambdaT_index){
+  // compute pseudodata observations
+
+  VectorXr first_addendum; // G_ii( z_i - mu_i)
+  VectorXr g_mu; // g( mu_i )
+
+  const VectorXr * z = this->inputData_.getInitialObservations();
+
+  first_addendum.resize(mu_[lambdaS_index][lambdaT_index].size());
+  g_mu.resize(mu_[lambdaS_index][lambdaT_index].size());
+
+  //compute the vecotr first_addendum and g_mu
+  for(auto i=0; i < mu_[lambdaS_index][lambdaT_index].size(); i++){
+    g_mu(i) = link(mu_[lambdaS_index][lambdaT_index](i));
+    first_addendum(i) = G_[lambdaS_index][lambdaT_index](i)*((*z)(i)-mu_[lambdaS_index][lambdaT_index](i));
+  }
+
+  pseudoObservations_[lambdaS_index][lambdaT_index] = first_addendum + g_mu;
+
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_Weights(const UInt& lambdaS_index, const UInt& lambdaT_index){
+  // computed W elementwise (it is a diagonal matrix)
+
+  this->WeightsMatrix_[lambdaS_index][lambdaT_index].resize( mu_[lambdaS_index][lambdaT_index].size());
+
+  for(auto i=0; i < mu_[lambdaS_index][lambdaT_index].size(); i++){
+    this->WeightsMatrix_[lambdaS_index][lambdaT_index](i) = 1/(pow(G_[lambdaS_index][lambdaT_index](i),2)*(var_function( mu_[lambdaS_index][lambdaT_index](i))));
+  }
+
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::prepare_weighted_regression(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+	// Compute weights and pseudo data
+	compute_G(lambdaS_index, lambdaT_index);
+	compute_pseudoObs(lambdaS_index, lambdaT_index);
+	compute_Weights(lambdaS_index, lambdaT_index);
+	
+	// Store weights in RegressionData (it makes them visible to the solver for step (2) of f-PIRLS)
+	this->inputData_.updatePseudodata(pseudoObservations_[lambdaS_index][lambdaT_index], this->WeightsMatrix_[lambdaS_index][lambdaT_index]);
+	
+}
+
+// STEP (3) methods
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_mu(const UInt& lambdaS_index, const UInt& lambdaT_index){
+  //compute mu as mu_i = g-1( w_ii*beta + fn_hat)
+
+  VectorXr W_beta = VectorXr::Zero(mu_[lambdaS_index][lambdaT_index].size()); // initialize the vector w_ii*beta
+
+  if(this->inputData_.getCovariates()->rows()>0)
+    W_beta = (*(this->inputData_.getCovariates()))*this->_beta_hat(lambdaS_index,lambdaT_index);
+
+  for(UInt j=0; j < W_beta.size(); j++){
+      mu_[lambdaS_index][lambdaT_index](j) = inv_link(W_beta[j] + this->_fn_hat(lambdaS_index,lambdaT_index)(j));
+  }
+
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::update_parameters(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+	// Compute the vector mu
+	compute_mu(lambdaS_index, lambdaT_index);
+}
+
+// Other methods
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+std::array<Real,2> FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index){
+  // compute the functional J: it is divided in parametric and non parametric part
+  Real parametric_value = 0;
+  Real non_parametric_value = 0;
+  Real tmp;
+
+
+  VectorXr Lf;
+
+  const VectorXr * z = this->inputData_.getInitialObservations();
+
+  for(UInt i=0; i < mu_.size(); i++){
+    tmp =std::sqrt( var_function( mu_[lambdaS_index][lambdaT_index](i)) ) * ((*z)(i) - mu_[lambdaS_index][lambdaT_index](i)) ;
+    parametric_value += tmp*tmp;
+  }
+
+  Lf.resize(this->_solution(lambdaS_index,lambdaT_index).size()/2);
+  for(UInt i=0; i< Lf.size(); i++){
+    Lf(i) = this->_solution(lambdaS_index, lambdaT_index)(Lf.size() + i);
+  }
+
+  if(this->isSpaceVarying)
+  {
+
+      if( this->inputData_.isSpaceTime() ){
+     
+       UInt M_ =  this->regression_.getM_();
+       UInt N_ = this->regression_.getN_();
+      
+       VectorXr forcingTerm_correction_;
+       forcingTerm_correction_.resize(M_*N_); // New size
+      
+       for(UInt i=0; i<N_; i++) // Update forcing term (i.e. repeat identically M_ times)
+       {
+       	for(UInt j=0; j<M_; j++)
+        {
+         forcingTerm_correction_(i+j*N_) = this->forcingTerm(i);
+        }
+       }
+      
+      	Lf = Lf - forcingTerm_correction_;
+      }
+      else{
+      	Lf = Lf - this->forcingTerm;
+      }
+  }
+  
+  SpMat Int;
+  std::array<Real, 2> lambdaST = {
+  	(*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
+        (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]};
+  if (this->inputData_.isSpaceTime()) {
+  	UInt correction_size = this->inputData_.getFlagParabolic() ? -1 : +2;
+        VectorXr intcoef(this->mesh_time_.size() + correction_size);
+        intcoef.setConstant(this->mesh_time_[1] - this->mesh_time_[0]);
+        intcoef(0) *= 0.5;
+        SpMat IN(this->mesh_.num_nodes(), this->mesh_.num_nodes());
+        IN.setIdentity();
+        SpMat tmp = intcoef.asDiagonal().toDenseMatrix().sparseView();
+        tmp = kroneckerProduct(tmp, IN);
+        Int.resize(tmp.rows(), tmp.cols());
+        Int = lambdaST[0] * (*this->regression_.getR0_()) * tmp;
+    } else {
+        Int.resize(this->mesh_.num_nodes(), this->mesh_.num_nodes());
+        Int = lambdaST[0] * (*this->regression_.getR0_());
+    }
+    
+  non_parametric_value = Lf.transpose() * Int * Lf;
+
+  std::array<Real,2> returnObject{parametric_value, non_parametric_value};
+
+  return returnObject;
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UInt& lambdaS_index, const UInt& lambdaT_index){
+
+        if (this->optimizationData_.get_DOF_evaluation() != "not_required") //in this case surely we have already the ls
+        { // is DOF_matrix to be computed?
+        this->regression_.computeDegreesOfFreedom(0, 0, (*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
+        					  (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]);
+        this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(0,0);
+        }
+        else this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(lambdaS_index, lambdaT_index);
+ 
+        const VectorXr * y = this->inputData_.getInitialObservations();
+        Real GCV_value = 0;
+
+        for(UInt j=0; j < y->size();j++)
+        GCV_value += dev_function(mu_[lambdaS_index][lambdaT_index][j], (*y)[j]); //norm computation
+
+        GCV_value *= y->size();
+
+        GCV_value /= (y->size()-this->optimizationData_.get_tuning()*this->_dof(lambdaS_index,lambdaT_index))*(y->size()-this->optimizationData_.get_tuning()*this->_dof(lambdaS_index,lambdaT_index));
+
+        this->_GCV[lambdaS_index][lambdaT_index] = GCV_value;
+
+        //best lambda
+        if(GCV_value < this->optimizationData_.get_best_value())
+        {
+        this->optimizationData_.set_best_lambda_S(lambdaS_index);
+        this->optimizationData_.set_best_lambda_T(lambdaT_index);
+        this->optimizationData_.set_best_value(GCV_value);
+        }
+
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_variance_est(){
+  Real phi;
+  if(this->scale_parameter_flag_ && this->optimizationData_.get_loss_function()!="GCV"){// if scale param should be
+    _variance_estimates.resize(this->lenS_, std::vector<Real>(this->lenT_, 0.0));
+    const UInt n_obs = this->inputData_.getObservations()->size();
+
+    //scale parameter computed as: mean((var.link(mu)*phi)/mu), and phi is computed as in Wood IGAM
+    for(UInt i=0; i < this->lenS_;i++){
+    	for(UInt j=0; j< this->lenT_; j++){ 
+		phi = (this->scale_parameter_flag_ )? this->current_J_values[i][j][0]/(n_obs - this->_dof(i,j) ) : _scale_param;
+		for(UInt k=0; k < this->mu_[i][j].size(); k++){
+        	_variance_estimates[i][j] += phi* this->var_function(this->mu_[i][j](k))/this->mu_[i][j](k);
+      }
+      _variance_estimates[i][j] /= this->mu_[i][j].size();
+    }
+   }
+  }else{
+    _variance_estimates.resize(this->lenS_, std::vector<Real>(this->lenT_,-1));
+  }
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::additional_estimates()
+{
+	// Compute an estimate of the scale parameter when needed (only for proper distributions)
+	compute_variance_est();
+}
+
 
 
 #endif
