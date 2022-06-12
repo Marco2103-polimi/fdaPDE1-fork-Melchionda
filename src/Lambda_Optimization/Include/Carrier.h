@@ -286,9 +286,9 @@ class Carrier: public Extensions...
                  \param u the vector or matrix onto which to perform multiplication
                  \return the solution of the system
                 */
-                inline MatrixXr lmbQ(const MatrixXr & u)
+                inline MatrixXr lmbQ(const MatrixXr & u, const bool GCV_eval_flag = false)
                 {
-                        return this->model->LeftMultiplybyQ(u);
+                        return this->model->LeftMultiplybyQ(u, GCV_eval_flag);
                 }
 };
 //----------------------------------------------------------------------------//

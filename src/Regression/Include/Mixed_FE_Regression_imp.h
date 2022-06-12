@@ -253,6 +253,8 @@ void MixedFERegressionBase<InputHandler>::setH(void)
 	const MatrixXr * Wp(this->regressionData_.getCovariates());
 	bool ilbn = regressionData_.isLocationsByNodes();
 
+	const VectorXr * P = this->regressionData_.getWeightsMatrix();
+
 	if(ilbn)
 	{
 		const std::vector<UInt> * k = regressionData_.getObservationsIndices();
@@ -274,7 +276,10 @@ void MixedFERegressionBase<InputHandler>::setH(void)
 	}
 
 	MatrixXr Wt(Wp->transpose());		// Compute W^t
-	H_ = (*Wp)*(Wt*(*Wp)).ldlt().solve(Wt);	// using cholesky LDLT decomposition for computing hat matrix
+	if(P->size() == 0)
+		H_ = (*Wp)*(Wt*(*Wp)).ldlt().solve(Wt);	// using cholesky LDLT decomposition for computing hat matrix
+	else
+		H_ = (*Wp)*(Wt*P->asDiagonal()*(*Wp)).ldlt().solve(Wt*P->asDiagonal());
 
 	if(ilbn)
 		delete Wp;
@@ -293,6 +298,11 @@ void MixedFERegressionBase<InputHandler>::setQ(void)
 	{
 		Q_(i,i) += 1;			// Summing the identity by rows (or columns)
 	}
+
+	// Add weights if present
+	const VectorXr * P = this->regressionData_.getWeightsMatrix();
+	Q_ = P->asDiagonal()*Q_;
+
 }
 
 template<typename InputHandler>
@@ -363,7 +373,7 @@ void MixedFERegressionBase<InputHandler>::setDMat(void)
 // Utilities [[GM NOT VERY OPTMIZED, SENSE??, we have Q and P...]]
 
 template<typename InputHandler>
-MatrixXr MixedFERegressionBase<InputHandler>::LeftMultiplybyQ(const MatrixXr& u)
+MatrixXr MixedFERegressionBase<InputHandler>::LeftMultiplybyQ(const MatrixXr& u, const bool GCV_eval_flag)
 {
 	// Weight matrix is used for GAM problems, it is also automatically added to the utility
 	const VectorXr * P = this->regressionData_.getWeightsMatrix();
@@ -397,10 +407,10 @@ MatrixXr MixedFERegressionBase<InputHandler>::LeftMultiplybyQ(const MatrixXr& u)
 			Hu = W*WTW_.solve(W.transpose()*P->asDiagonal()*u);
 
 		// Return the result
-		if(P->size()==0)
-			return u-Hu;
-		else
+		if(P->size()!= 0 & !GCV_eval_flag)
 			return P->asDiagonal()*(u - Hu);
+		else
+			return u-Hu;
 	}
 
 }
@@ -755,7 +765,7 @@ void MixedFERegressionBase<InputHandler>::computeGeneralizedCrossValidation(UInt
 	if(regressionData_.getCovariates()->rows()==0) //Data estimated from the model
 		dataHat = psi_*_solution(output_indexS,output_indexT).topRows(psi_.cols());
 	else
-		dataHat = *z - LeftMultiplybyQ(*z) + LeftMultiplybyQ(psi_*_solution(output_indexS,output_indexT).topRows(psi_.cols()));
+		dataHat = *z - LeftMultiplybyQ(*z) + LeftMultiplybyQ(psi_*_solution(output_indexS,output_indexT).topRows(psi_.cols()), true);
 
 	UInt n = dataHat.rows();
 	if(regressionData_.isSpaceTime())

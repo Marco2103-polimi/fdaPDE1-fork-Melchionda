@@ -252,7 +252,7 @@ class MixedFERegressionBase
         	bool isMatrixNoCov_factorized() const{return this->matrixNoCovdec_.info() == Eigen::ComputationInfo::Success;}	
         	
 		//! A function that given a vector u, performs Q*u efficiently
-		MatrixXr LeftMultiplybyQ(const MatrixXr & u);
+		MatrixXr LeftMultiplybyQ(const MatrixXr & u, const bool GCV_eval_flag = false);
 
 		// -- APPLY --
 		//! The function solving the system, used by the children classes. Saves the result in _solution
