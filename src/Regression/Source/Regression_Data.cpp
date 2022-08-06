@@ -2,7 +2,7 @@
 
 // costructor with WeightMatrix
 RegressionData::RegressionData(Real* locations, UInt n_locations, UInt ndim, VectorXr & observations, UInt order, MatrixXr & covariates,
-	 VectorXr & WeightsMatrix, std::vector<UInt> & bc_indices, std::vector<Real> & bc_values,  MatrixXi & incidenceMatrix, bool arealDataAvg, UInt search):
+	 SpMat & WeightsMatrix, std::vector<UInt> & bc_indices, std::vector<Real> & bc_values,  MatrixXi & incidenceMatrix, bool arealDataAvg, UInt search):
 	locations_(locations, n_locations, ndim), observations_(observations), arealDataAvg_(arealDataAvg), WeightsMatrix_(WeightsMatrix),
 	order_(order), bc_values_(bc_values), bc_indices_(bc_indices), covariates_(covariates), incidenceMatrix_(incidenceMatrix),
 	flag_SpaceTime_(false), search_(search)
@@ -300,11 +300,11 @@ void RegressionData::setIncidenceMatrix(SEXP RincidenceMatrix)
 void RegressionData::setWeights(SEXP Rweights)
 {
 	UInt n_obs_ = Rf_length(Rweights);
-	WeightsMatrix_.resize(n_obs_);
+	WeightsMatrix_.resize(n_obs_, n_obs_);
 
 	for(auto i=0;i<n_obs_;++i)
 	{
-		WeightsMatrix_[i] = REAL(Rweights)[i];
+		WeightsMatrix_.insert(i, i) = REAL(Rweights)[i];
 	}
 }
 

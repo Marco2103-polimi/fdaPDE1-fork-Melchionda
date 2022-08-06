@@ -253,7 +253,7 @@ void MixedFERegressionBase<InputHandler>::setH(void)
 	const MatrixXr * Wp(this->regressionData_.getCovariates());
 	bool ilbn = regressionData_.isLocationsByNodes();
 
-	const VectorXr * P = this->regressionData_.getWeightsMatrix();
+	const SpMat * P = this->regressionData_.getWeightsMatrix();
 
 	if(ilbn)
 	{
@@ -276,10 +276,10 @@ void MixedFERegressionBase<InputHandler>::setH(void)
 	}
 
 	MatrixXr Wt(Wp->transpose());		// Compute W^t
-	if(P->size() == 0)
+	if(P->rows() == 0)
 		H_ = (*Wp)*(Wt*(*Wp)).ldlt().solve(Wt);	// using cholesky LDLT decomposition for computing hat matrix
 	else
-		H_ = (*Wp)*(Wt*P->asDiagonal()*(*Wp)).ldlt().solve(Wt*P->asDiagonal());
+		H_ = (*Wp)*(Wt * *P * (*Wp)).ldlt().solve(Wt * *P);
 
 	if(ilbn)
 		delete Wp;
@@ -300,8 +300,10 @@ void MixedFERegressionBase<InputHandler>::setQ(void)
 	}
 
 	// Add weights if present
-	const VectorXr * P = this->regressionData_.getWeightsMatrix();
-	Q_ = P->asDiagonal()*Q_;
+	const SpMat * P = this->regressionData_.getWeightsMatrix();
+	if(P->rows() != 0){
+		Q_ = *P * Q_;
+	}
 
 }
 
@@ -348,10 +350,10 @@ void MixedFERegressionBase<InputHandler>::setpsi_t_(void)
 template<typename InputHandler>
 void MixedFERegressionBase<InputHandler>::setDMat(void)
 {
-	if(regressionData_.getWeightsMatrix()->size() == 0) // no weights
+	if(regressionData_.getWeightsMatrix()->rows() == 0) // no weights
 		DMat_ = psi_;
 	else
-		DMat_ = regressionData_.getWeightsMatrix()->asDiagonal()*psi_;
+		DMat_ = *regressionData_.getWeightsMatrix() * psi_;
 
 
 	if(regressionData_.getNumberOfRegions() == 0) // pointwise data
@@ -376,15 +378,15 @@ template<typename InputHandler>
 MatrixXr MixedFERegressionBase<InputHandler>::LeftMultiplybyQ(const MatrixXr& u, const bool GCV_eval_flag)
 {
 	// Weight matrix is used for GAM problems, it is also automatically added to the utility
-	const VectorXr * P = this->regressionData_.getWeightsMatrix();
+	const SpMat * P = this->regressionData_.getWeightsMatrix();
 
 	if(regressionData_.getCovariates()->rows() == 0)
 	{
 		// Q is the projecton on Col(W) if W == 0 => Q = Identity
-		if(P->size()==0)
+		if(P->rows()==0)
 			return u;
 		else
-			return P->asDiagonal()*u;
+			return *P * u;
 	}
 	else
 	{
@@ -392,23 +394,23 @@ MatrixXr MixedFERegressionBase<InputHandler>::LeftMultiplybyQ(const MatrixXr& u,
 		// Check factorization, if not present factorize the matrix W^t*W
 		if(isWTWfactorized_ == false)
 		{
-			if(P->size() == 0)
+			if(P->rows() == 0)
 				WTW_.compute(W.transpose()*W);
 			else
-				WTW_.compute(W.transpose()*P->asDiagonal()*W);
+				WTW_.compute(W.transpose() * *P * W);
 			isWTWfactorized_=true; // Flag to no repeat the operation next time
 		}
 
 		MatrixXr Hu;
 		// Compute H (or I-Q) the projection on Col(W) and multiply it times u
-		if(P->size() == 0)
+		if(P->rows() == 0)
 			Hu = W*WTW_.solve(W.transpose()*u);
 		else
-			Hu = W*WTW_.solve(W.transpose()*P->asDiagonal()*u);
+			Hu = W*WTW_.solve(W.transpose() * *P * u);
 
 		// Return the result
-		if(P->size()!= 0 & !GCV_eval_flag)
-			return P->asDiagonal()*(u - Hu);
+		if(P->rows()!= 0 & !GCV_eval_flag)
+			return *P * (u - Hu);
 		else
 			return u-Hu;
 	}
@@ -619,7 +621,7 @@ void MixedFERegressionBase<InputHandler>::system_factorize()
 {
 
     UInt nnodes = N_*M_;	// Note that is only space M_=1
-	const VectorXr * P = regressionData_.getWeightsMatrix(); // Matrix of weights for GAM
+	const SpMat * P = regressionData_.getWeightsMatrix(); // Matrix of weights for GAM
 
 	// First phase: Factorization of matrixNoCov
 	matrixNoCovdec_.compute(matrixNoCov_);
@@ -636,29 +638,29 @@ void MixedFERegressionBase<InputHandler>::system_factorize()
 		U_ = MatrixXr::Zero(2*nnodes,W.cols());
 		V_ = MatrixXr::Zero(W.cols(),2*nnodes);
 
-		if(P->size()==0)
+		if(P->rows()==0)
 		{
 			V_.leftCols(nnodes) = W.transpose()*psi_;
 		}
 		else
 		{
-			V_.leftCols(nnodes) = W.transpose()*P->asDiagonal()*psi_;
+			V_.leftCols(nnodes) = W.transpose() * *P * psi_;
 		}
 
 
 		if(regressionData_.getNumberOfRegions()==0)
 		{ // pointwise data
-			if(P->size() == 0)
+			if(P->rows() == 0)
 				U_.topRows(nnodes) = psi_.transpose()*W;
 			else
-				U_.topRows(nnodes) = psi_.transpose()*P->asDiagonal()*W;
+				U_.topRows(nnodes) = psi_.transpose() * *P * W;
 		}
 		else
 		{ //areal data
-			if(P->size() == 0)
+			if(P->rows() == 0)
 				U_.topRows(nnodes) = psi_.transpose()*A_.asDiagonal()*W;
 			else
-				U_.topRows(nnodes) = psi_.transpose()*A_.asDiagonal()*P->asDiagonal()*W;
+				U_.topRows(nnodes) = psi_.transpose()*A_.asDiagonal() * *P * W;
     	}
 
 		if (!this->isIterative)
@@ -667,10 +669,10 @@ void MixedFERegressionBase<InputHandler>::system_factorize()
 
             // G = C + D
             MatrixXr G;
-            if (P->size() == 0) {
+            if (P->rows() == 0) {
                 G = -W.transpose() * W + D;
             } else {
-                G = -W.transpose() * P->asDiagonal() * W + D;
+                G = -W.transpose() * *P * W + D;
             }
             Gdec_.compute(G);
         }
@@ -778,7 +780,18 @@ void MixedFERegressionBase<InputHandler>::computeGeneralizedCrossValidation(UInt
 			n-=observations_na->size();
 		}
 //! GCV computation
-	_GCV(output_indexS,output_indexT) = (n / ((n - optimizationData_.get_tuning()*((this->getDOF())(output_indexS, output_indexT))) * (n - optimizationData_.get_tuning()*((this->getDOF())(output_indexS, output_indexT))))) * (*z-dataHat).dot(*z-dataHat);
+	_GCV(output_indexS,output_indexT) = (n / ((n - optimizationData_.get_tuning()*((this->getDOF())(output_indexS, output_indexT))) * (n - optimizationData_.get_tuning()*((this->getDOF())(output_indexS, output_indexT)))));
+	
+	const SpMat * P = regressionData_.getWeightsMatrix(); // Matrix of weights
+
+	if(P->rows() == 0){
+		_GCV(output_indexS,output_indexT) = _GCV(output_indexS,output_indexT) * (*z-dataHat).dot(*z-dataHat);
+	}
+	else{
+		_GCV(output_indexS,output_indexT) = _GCV(output_indexS,output_indexT) * (*z-dataHat).dot( *P * (*z-dataHat) );
+	}
+			
+	
 	if (_GCV(output_indexS,output_indexT) < optimizationData_.get_best_value())
 	{
 		optimizationData_.set_best_lambda_S(output_indexS);
@@ -1412,11 +1425,11 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply(void)
 			if(regressionData_.getCovariates()->rows()!=0)
 			{
 				MatrixXr W(*(this->regressionData_.getCovariates()));
-				VectorXr P(*(this->regressionData_.getWeightsMatrix()));
+				SpMat P(*(this->regressionData_.getWeightsMatrix()));
 				VectorXr beta_rhs;
-				if( P.size() != 0)
+				if( P.rows() != 0)
 				{
-					beta_rhs = W.transpose()*P.asDiagonal()*(*obsp - psi_*_solution(s,t).topRows(psi_.cols()));
+					beta_rhs = W.transpose()*P*(*obsp - psi_*_solution(s,t).topRows(psi_.cols()));
 				}
 				else
 				{

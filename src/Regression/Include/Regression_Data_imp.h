@@ -1,7 +1,32 @@
 #ifndef __REGRESSION_DATA_IMP_H__
 #define __REGRESSION_DATA_IMP_H__
 
-// -- GAM CONSTRUCTORS --
+// -- GAM CONSTRUCTORS and Utilities--
+template<typename RegressionHandler>
+void RegressionDataGAM<RegressionHandler>::initializeWeights()
+{
+	// Allocate required memory
+	this->WeightsMatrix_.reserve(initialObservations_.size());
+	this->WeightsMatrix_.resize(initialObservations_.size(), initialObservations_.size());
+
+	// Initialize required elements
+	for(auto i=0; i<initialObservations_.size(); i++){
+		this->WeightsMatrix_.insert(i,i) = 1;
+	}
+}
+
+
+
+template<typename RegressionHandler>
+void RegressionDataGAM<RegressionHandler>::updatePseudodata(VectorXr& z_, VectorXr& P)
+{
+	this-> observations_ = z_; 
+	for(auto i=0; i<P.size(); i++){
+		this-> WeightsMatrix_.coeffRef(i,i) = P.coeff(i);
+	}
+}
+
+
 // Laplace
 template<typename RegressionHandler>
 RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
@@ -12,6 +37,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
 	max_num_iterations_ = INTEGER(Rmax_num_iteration)[0];
 	threshold_ =  REAL(Rthreshold)[0];
 	initialObservations_ = this->observations_;
+	initializeWeights();
 	this->isGAM = true;
 }
 
@@ -26,6 +52,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
 	max_num_iterations_ = INTEGER(Rmax_num_iteration)[0];
 	threshold_ =  REAL(Rthreshold)[0];
 	initialObservations_ = this->observations_;
+	initializeWeights();
 	this->isGAM = true;
 }
 
@@ -40,6 +67,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
 	max_num_iterations_ = INTEGER(Rmax_num_iteration)[0];
 	threshold_ =  REAL(Rthreshold)[0];
 	initialObservations_ = this->observations_;
+	initializeWeights();
 	this->isGAM = true;
 }
 
@@ -55,6 +83,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
     max_num_iterations_ = INTEGER(Rmax_num_iteration_pirls)[0];
     threshold_ = REAL(Rthreshold_pirls)[0];
     initialObservations_ = this->observations_;
+	initializeWeights();
     this->isGAM = true;
 }
 
@@ -70,6 +99,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
     max_num_iterations_ = INTEGER(Rmax_num_iteration_pirls)[0];
     threshold_ = REAL(Rthreshold_pirls)[0];
     initialObservations_ = this->observations_;
+	initializeWeights();
     this->isGAM = true;
 }
 
@@ -85,6 +115,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
     max_num_iterations_ = INTEGER(Rmax_num_iteration_pirls)[0];
     threshold_ = REAL(Rthreshold_pirls)[0];
     initialObservations_ = this->observations_;
+	initializeWeights();
     this->isGAM = true;
 }
 

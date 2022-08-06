@@ -19,7 +19,7 @@ class  RegressionData
 		bool 		   locations_by_nodes_{}; 	//!< If location is on the mesh nodes or not.
 		UInt 		   nRegions_ = 0; 		//!< For areal data.
 		bool 		   arealDataAvg_{}; 		//!< Is areal data averaged ?
-		VectorXr	   WeightsMatrix_; 		//!< Weighted regression.
+		SpMat	   	   WeightsMatrix_; 		//!< Weighted regression.
 		bool           isGAM = false;
 
 
@@ -109,7 +109,7 @@ class  RegressionData
 					SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rflag_mass, SEXP Rflag_parabolic, SEXP Rflag_iterative,SEXP Rmax_num_iteration, SEXP Rthreshold, SEXP Ric, SEXP Rsearch, SEXP Rweights);
 
 		explicit RegressionData(Real* locations, UInt n_locations, UInt ndim, VectorXr & observations, UInt order, MatrixXr & covariates,
-			 VectorXr & WeightsMatrix, std::vector<UInt> & bc_indices, std::vector<Real> & bc_values,  MatrixXi & incidenceMatrix, bool arealDataAvg, UInt search);
+			 SpMat & WeightsMatrix, std::vector<UInt> & bc_indices, std::vector<Real> & bc_values,  MatrixXi & incidenceMatrix, bool arealDataAvg, UInt search);
 
 		// -- PRINTERS --
 		void printObservations(std::ostream & out) const;
@@ -172,7 +172,7 @@ class  RegressionData
 		UInt getOrder(void) const {return order_;}
 
 		//! A method returning a const pointer to the matrix of weights
-		const VectorXr * getWeightsMatrix(void) const {return &WeightsMatrix_;}
+		const SpMat * getWeightsMatrix(void) const {return &WeightsMatrix_;}
 
         bool isSpaceTime(void) const {return flag_SpaceTime_;}
 		bool getFlagMass(void) const {return flag_mass_;}
@@ -306,6 +306,9 @@ class  RegressionDataGAM : public RegressionHandler
 		std::vector<UInt> initial_observations_indeces_;
 		UInt max_num_iterations_; //!< Max number of iterations allowed.
 		Real threshold_; //!< Limit in difference among J_k and J_k+1 for which we stop FPIRLS.
+		
+		// Constructor utilities
+		void initializeWeights(void);
 
 	public:
 		//! A complete version of the constructor.
@@ -375,7 +378,7 @@ class  RegressionDataGAM : public RegressionHandler
 		UInt getNumberofInitialObservations() const {return initial_observations_indeces_.size();}
 
 		//! Update Pseudodata (observations and weights)
-		void updatePseudodata(VectorXr& z_, VectorXr& P){this-> observations_ = z_; this-> WeightsMatrix_ = P;}
+		void updatePseudodata(VectorXr& z_, VectorXr& P);
 };
 
 
