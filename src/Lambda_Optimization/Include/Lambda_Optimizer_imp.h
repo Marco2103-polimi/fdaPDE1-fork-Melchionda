@@ -180,7 +180,12 @@ template<typename InputCarrier, UInt size>
 void GCV_Family<InputCarrier, size>::compute_sigma_hat_sq(void)
 {
         // sigma_hat^2 = SS_res/dor
-        this->sigma_hat_sq = this->SS_res/Real(this->dor);
+		if(this->the_carrier.get_Pp()->rows() == 0){
+			this->sigma_hat_sq = this->SS_res/Real(this->dor);
+		}
+		else{
+			this->sigma_hat_sq = this->eps_hat.dot( *this->the_carrier.get_Pp() * this->eps_hat )/Real(this->dor);
+		}
 
         // Debugging purpose print
         // Rprintf("sigma_hat_sq = %f\n", this->sigma_hat_sq);
@@ -501,20 +506,32 @@ void GCV_Exact<InputCarrier, 1>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixX
                         {
                                 if (i == j) // diagonal block, also update trace
                                 {
-                                        Real v = mat.coeff((*kp)[i], j);
+                                        Real v;
+                                        if (this->the_carrier.get_Pp()->rows()==0)
+                                        	v = mat.coeff((*kp)[i], j);
+										else
+											v = this->the_carrier.get_Pp()->row((*kp)[i]) * mat.col(j);
+
                                         trace += v;
-                                        ret.coeffRef(i,i) += mat.coeff((*kp)[i], i);
+                                        ret.coeffRef(i,i) += v;
                                 }
                                 else    // just update return matrix
                                 {
-                                        ret.coeffRef(i,j) += mat.coeff((*kp)[i], j);
+										if (this->the_carrier.get_Pp()->rows()==0)
+											ret.coeffRef(i,j) += mat.coeff((*kp)[i], j);
+										else
+											ret.coeffRef(i,j) += this->the_carrier.get_Pp()->row((*kp)[i]) * mat.col(j);
                                 }
                         }
         }
         else
         {
                 // Psi is full, compute matrix and trace directly
-                ret = (*this->the_carrier.get_psip())*mat;
+                if(this->the_carrier.get_Pp()->size() == 0)
+                	ret = (*this->the_carrier.get_psip())*mat;
+                else
+                	ret = (*this->the_carrier.get_psip()) * (*this->the_carrier.get_Pp()) * mat;
+
                 for (int i = 0; i < this->s; ++i)
                         trace += ret.coeff(i, i);
         }
@@ -559,7 +576,11 @@ void GCV_Exact<InputCarrier, 2>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixX
         {
                 */
                 // Psi is full, compute matrix and trace directly
-                ret = (*this->the_carrier.get_psip())*mat;
+				if(this->the_carrier.get_Pp()->size() == 0)
+					ret = (*this->the_carrier.get_psip())*mat;
+				else
+					ret = (*this->the_carrier.get_psip()) * (*this->the_carrier.get_Pp()) * mat;
+
                 for (int i = 0; i < this->s; ++i)
                         trace += ret.coeff(i, i);
         //}
@@ -574,7 +595,7 @@ template<typename InputCarrier>
 void GCV_Exact<InputCarrier, 1>::compute_z_hat(lambda::type<1> lambda)
 {
         UInt ret;
-        if (this->the_carrier.get_bc_indicesp()->size()==0 && !this->the_carrier.get_flagParabolic())
+        if (this->the_carrier.get_bc_indicesp()->size()==0 && !this->the_carrier.get_flagParabolic() && this->the_carrier.get_Pp()->rows()==0)
         {
                 ret = AuxiliaryOptimizer::universal_z_hat_setter<InputCarrier>(this->z_hat, this->the_carrier, this->S_, this->adt, lambda);
         }
@@ -604,7 +625,7 @@ template<typename InputCarrier>
 void GCV_Exact<InputCarrier, 2>::compute_z_hat(lambda::type<2> lambda)
 {
         UInt ret;
-        if (this->the_carrier.get_bc_indicesp()->size()==0)
+        if (this->the_carrier.get_bc_indicesp()->size()==0 && this->the_carrier.get_Pp()->rows()==0)
                 ret = AuxiliaryOptimizer::universal_z_hat_setter<InputCarrier>(this->z_hat, this->the_carrier, this->S_, this->adt, lambda);
         else {
 

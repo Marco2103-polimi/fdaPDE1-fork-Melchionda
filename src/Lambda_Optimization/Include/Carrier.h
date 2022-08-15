@@ -54,6 +54,7 @@ class Carrier: public Extensions...
                 const MatrixXr * Wp;                          //!< pointer to the matrix of covariates [size n_obs x n_covariates]
                 const MatrixXr * Hp;                          //!< pointer to the hat matrix [size n_covariates x n_covariates]
                 const MatrixXr * Qp;                          //!< pointer to the identity - (hat matrix) [size n_covariates x n_covariates]
+                const SpMat * Pp;                             //!< pointer to the weights matrix
 
                 const SpMat * DMatp;                          //!< pointer to the north-west block of system matrix [size n_nodes x n_nodes]
                 const SpMat * R1p;                            //!< pointer to R1 matrix [size n_nodes x n_nodes]
@@ -109,7 +110,7 @@ class Carrier: public Extensions...
                 */
                 inline void set_all(MixedFERegressionBase<InputHandler> * model_, OptimizationData * opt_data_,
                         bool locations_are_nodes_, bool has_covariates_, UInt n_obs_, UInt n_space_obs_, UInt n_nodes_, const std::vector<UInt> * obs_indicesp_,
-                        const VectorXr * zp_, const MatrixXr * Wp_, const MatrixXr * Hp_, const MatrixXr * Qp_,
+                        const VectorXr * zp_, const MatrixXr * Wp_, const MatrixXr * Hp_, const MatrixXr * Qp_, const SpMat * Pp_,
                         const SpMat * DMatp_, const SpMat * R1p_, const SpMat * R0p_, const SpMat * LR0kp_, const SpMat * Ptkp_, const SpMat * psip_, const SpMat * psi_tp_,
                         const VectorXr * rhsp_, const std::vector<Real> * bc_valuesp_, const std::vector<UInt> * bc_indicesp_, bool flag_parabolic_)
                 {
@@ -126,6 +127,7 @@ class Carrier: public Extensions...
                         set_Wp(Wp_);
                         set_Hp(Hp_);
                         set_Qp(Qp_);
+                        set_Pp(Pp_);
                         set_DMatp(DMatp_);
                         set_R1p(R1p_);
                         set_R0p(R0p_);
@@ -171,6 +173,7 @@ class Carrier: public Extensions...
                 inline const MatrixXr * get_Wp(void) const {return this->Wp;}                                   //!< Getter of Wp \return Wp
                 inline const MatrixXr * get_Hp(void) const {return this->Hp;}                                   //!< Getter of Hp \return Hp
                 inline const MatrixXr * get_Qp(void) const {return this->Qp;}                                   //!< Getter of Qp \return Qp
+                inline const SpMat * get_Pp(void) const {return this->Pp;}                                      //!< Getter of Pp \return Pp
                 inline const SpMat * get_DMatp(void) const {return this->DMatp;}                                //!< Getter of DMatp \return DMatp
                 inline const SpMat * get_R1p(void) const {return this->R1p;}                                    //!< Getter of R1p \return R1p
                 inline const SpMat * get_R0p(void) const {return this->R0p;}                                    //!< Getter of R0p \return R0p
@@ -197,6 +200,7 @@ class Carrier: public Extensions...
                 inline void set_Wp(const MatrixXr * Wp_) {this->Wp = Wp_;}                                                              //!< Setter of Wp \param Wp_ new Wp
                 inline void set_Hp(const MatrixXr * Hp_) {this->Hp = Hp_;}                                                              //!< Setter of Hp \param Hp_ new Hp
                 inline void set_Qp(const MatrixXr * Qp_) {this->Qp = Qp_;}                                                              //!< Setter of Qp \param Qp_ new Qp
+                inline void set_Pp(const SpMat * Pp_) {this->Pp = Pp_;}                                                                 //!< Setter of Pp \param Pp_ new Pp
                 inline void set_DMatp(const SpMat * DMatp_) {this->DMatp = DMatp_;}                                                     //!< Setter of DMatp \param DMatp_ new DMatp
                 inline void set_R1p(const SpMat * R1p_) {this->R1p = R1p_;}                                                             //!< Setter of R1p \param R1p_ new R1p
                 inline void set_R0p(const SpMat * R0p_) {this->R0p = R0p_;}  
@@ -418,7 +422,7 @@ class CarrierBuilder
                         //check di NON costruire CarrierBuilder<InputH, Parabolic, Separable>
                         car.set_all(&mc, &optimizationData, data.isLocationsByNodes(), bool(data.getCovariates()->rows()>0 && data.getCovariates()->cols()>0),
                                 data.getNumberofObservations(), data.getNumberofSpaceObservations(), mc.getnnodes_(), data.getObservationsIndices(),
-                                data.getObservations(), data.getCovariates(), mc.getH_(), mc.getQ_(), mc.getDMat_(), mc.getR1_(),
+                                data.getObservations(), data.getCovariates(), mc.getH_(), mc.getQ_(), data.getWeightsMatrix(), mc.getDMat_(), mc.getR1_(),
                                 mc.getR0_(), mc.getLR0k_(), mc.getPtk_(), mc.getpsi_(), mc.getpsi_t_(), mc.getrhs_(), data.getDirichletValues(), data.getDirichletIndices(), data.getFlagParabolic());
                 }
 
