@@ -697,6 +697,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       numnodes = nrow(FEMbasis$mesh$nodes)
     }
   }
+  }
     else
   {
     #----------------------------------------------------#
@@ -901,6 +902,8 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   }
   else
   {
+    if(is.null(rand.effects.covariates))
+    {
     if(!is.null(covariates))
     {
       if(optim[1]==0 & is.null(DOF.matrix) & optim[3]==0)
@@ -1006,5 +1009,106 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
     reslist = list(fit.FEM = fit.FEM, PDEmisfit.FEM = PDEmisfit.FEM, solution = solution,
                 optimization  = optimization, time = time, bary.locations = bary.locations)
     return(reslist)
+    }
+    else # Mixed Effects
+    {
+      
+      f = bigsol[[1]][1:numnodes,]
+      g = bigsol[[1]][(numnodes+1):(2*numnodes),]
+      
+      dof = bigsol[[2]]
+      GCV_ = bigsol[[3]]
+      bestlambda = bigsol[[4]]+1
+      
+      if(!is.null(covariates))
+      {
+        beta = matrix(data=bigsol[[5]],nrow=ncol(covariates),ncol=length(lambda))
+      }
+      else
+      {
+        beta = NULL
+      }
+      
+      # Save information of Tree Mesh
+      tree_mesh = list()
+      #   treelev = bigsol[[6]][1],
+      #   header_orig= bigsol[[7]],
+      #   header_scale = bigsol[[8]],
+      #   node_id = bigsol[[9]][,1],
+      #   node_left_child = bigsol[[9]][,2],
+      #   node_right_child = bigsol[[9]][,3],
+      #   node_box= bigsol[[10]])
+      
+      # Reconstruct FEMbasis with tree mesh
+      mesh.class= class(FEMbasis$mesh)
+      if (is.null(FEMbasis$mesh$treelev))
+      { #if doesn't exist the tree information
+        FEMbasis$mesh = append(FEMbasis$mesh, tree_mesh)
+      } #if already exist the tree information, don't append
+      class(FEMbasis$mesh) = mesh.class
+      
+      # Save information of Barycenter
+      if (is.null(bary.locations))
+      {
+        bary.locations = list(locations=locations, element_ids = bigsol[[11]], barycenters = bigsol[[12]])
+      }
+      class(bary.locations) = "bary.locations"
+      
+      # Make Functional objects object
+      fit.FEM  = FEM(f, FEMbasis)
+      PDEmisfit.FEM = FEM(g, FEMbasis)
+      
+      # Prepare return list
+      reslist = NULL
+      
+      if(optim[3]==1)
+      {
+        if(bestlambda == 1 || bestlambda == length(lambda))
+          warning("Your optimal 'GCV' is on the border of lambda sequence")
+        stderr=sqrt(GCV_*(sum(!is.na(observations))-dof)/sum(!is.na(observations)))
+        optimization_type = "full DOF grid"
+      }
+      else
+      {
+        stderr = -1
+        optimization_type = "uninformative"
+      }
+      
+      solution = list(
+        f = f,
+        g = g,
+        z_hat = -1,
+        beta = beta,
+        rmse = -1,
+        estimated_sd=stderr
+      )
+      
+      optimization = list(
+        lambda_solution = lambda[bestlambda],
+        lambda_position = bestlambda,
+        GCV = GCV_[bestlambda],
+        optimization_details = list(
+          iterations = -1,
+          termination = "uninformative",
+          optimization_type = optimization_type),
+        dof = dof,
+        lambda_vector = lambda,
+        GCV_vector = GCV_
+      )
+      
+      # Mixed Effects outputs
+      fn.eval = bigsol[[13]]
+      J_minima = bigsol[[14]]
+      Sigma.b=bigsol[[15]]
+      b_i.hat=bigsol[[16]]
+      n_iterations = bigsol[[17]]
+      MixedEffects_output = list(fn.eval = fn.eval, J_minima = J_minima, Sigma.b = Sigma.b, b_i.hat = b_i.hat, n_iterations = n_iterations)
+      
+      reslist = list(fit.FEM = fit.FEM, PDEmisfit.FEM = PDEmisfit.FEM, solution = solution,
+                     optimization  = optimization, bary.locations = bary.locations,
+                     MixedEffects_output = MixedEffects_output)
+      return(reslist)
+    }
+    
   }
 }
