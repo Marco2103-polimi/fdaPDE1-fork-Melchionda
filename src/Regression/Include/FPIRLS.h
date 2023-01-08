@@ -25,8 +25,6 @@ class FPIRLS_Base {
    const UInt lenS_; //! It contains the length of the space-optimization parameters vector
    const UInt lenT_; //! It contains the length of the time-optimization parameters vector
 
-   std::vector<std::vector<VectorXr>> WeightsMatrix_; //!< It contains the estimated weights for each lambda_S, lambda_T in the grid evaluation
-
    // the value of the functional is saved deparated (parametric and non-parametric part)
    std::vector<std::vector<std::array<Real,2>>> current_J_values;
    std::vector<std::vector<std::array<Real,2>>> past_J_values; //!< Stores the value of the functional J at each iteration in order to apply the stopping criterion
@@ -57,7 +55,9 @@ class FPIRLS_Base {
    //! A virtual method to implement Step (3) of f-PIRLS. It uses the result of the weighted regression to finalize one iteration of the f-PIRLS and update various parameters
    virtual void update_parameters(const UInt& lambdaS_index, const UInt& lambdaT_index) = 0;
    //! A method that computes and return the current value of the functional J. It is divided in parametric and non parametric part.
-   virtual std::array<Real,2> compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index) = 0;
+   std::array<Real,2> compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index);
+   //! A method that computes the parametric part of functional J. It is virtual since this part depends on the FPIRLS specialization.
+   virtual Real compute_J_parametric(const UInt& lambdaS_index, const UInt& lambdaT_index) = 0;
    //! A method that computes the GCV value for a given lambda.
    virtual void compute_GCV(const UInt& lambdaS_index, const UInt& lambdaT_index);
    //! A method that computes additional quantities that are required only for specific cases. It is called at the end of the iterative procedure.
@@ -150,6 +150,8 @@ template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 class FPIRLS_GAM : public FPIRLS <InputHandler, ORDER, mydim, ndim> {
 	
   protected:
+
+	std::vector<std::vector<VectorXr>> WeightsMatrix_; //!< It contains the estimated weights for each lambda_S, lambda_T in the grid evaluation
 	
 	std::vector<std::vector<VectorXr>> mu_; //!< Mean vector
 	std::vector<std::vector<VectorXr>> pseudoObservations_; //! Pseudodata observations
@@ -180,8 +182,8 @@ class FPIRLS_GAM : public FPIRLS <InputHandler, ORDER, mydim, ndim> {
 	      
 	// Other methods
 
-	//! A method that computes and return the current value of the functional J. It is divided in parametric and non parametric part.
-	std::array<Real,2> compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! A method that computes and return the parametric part of the functional J.
+	Real compute_J_parametric(const UInt& lambdaS_index, const UInt& lambdaT_index);
 	//! A method that computes the estimates of the variance. It depends on the scale flags: only the Gamma and InvGaussian distributions have the scale parameter.
 	void compute_variance_est();
 	//! A method that computes additional quantities that are required only for specific cases. It is called at the end of the iterative procedure.

@@ -12,7 +12,6 @@ FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDE
   mesh_(mesh), inputData_(inputData), optimizationData_(optimizationData), regression_(inputData, optimizationData, mesh.num_nodes()), lenS_(optimizationData.get_size_S()), lenT_(optimizationData.get_size_T())
 {
   //Pre-allocate memory for all quatities
-  WeightsMatrix_.resize(lenS_, std::vector<VectorXr>(lenT_));
   current_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
   past_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
   n_iterations.resize(lenS_, std::vector<UInt>(lenT_));
@@ -33,7 +32,6 @@ FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::FPIRLS_Base(const MeshHandler<ORDE
   mesh_(mesh), mesh_time_(mesh_time), inputData_(inputData), optimizationData_(optimizationData), regression_(mesh_time, inputData, optimizationData, mesh.num_nodes()), lenS_(optimizationData.get_size_S()), lenT_(optimizationData.get_size_T())
 {
   //Pre-allocate memory for all quatities
-  WeightsMatrix_.resize(lenS_, std::vector<VectorXr>(lenT_));
   current_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
   past_J_values.resize(lenS_, std::vector<std::array<Real, 2>>(lenT_));
   n_iterations.resize(lenS_, std::vector<UInt>(lenT_));
@@ -56,7 +54,8 @@ void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::apply( const ForcingTerm& u){
   // f-PRILS implementation
 
   // Initialize the outputs. The temporal dimension is not implemented, for this reason the 2nd dimension is set to 1.
-  if( this->inputData_.getCovariates()->rows() > 0 )_beta_hat.resize(lenS_, lenT_);
+  if( this->inputData_.getCovariates()->rows() > 0 )
+  	_beta_hat.resize(lenS_, lenT_);
   _fn_hat.resize(lenS_, lenT_);
   _dof.resize(lenS_, lenT_);
   _solution.resize(lenS_,lenT_);
@@ -173,11 +172,75 @@ bool FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::stopping_criterion(const UInt
   return !(do_stop_by_iteration || do_stop_by_treshold );
 }
 
-//template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-//std::array<Real,2> FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index){
-//  // compute the functional J: it is divided in parametric and non parametric part
-//  return std::array<Real,2>{1,1};
-//}
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+std::array<Real,2> FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index){
+	// compute the functional J: it is divided in parametric and non parametric part
+
+	// Computation of parametric part: it is done in a pure virtual function since it is model-dependent
+	Real parametric_value = compute_J_parametric(lambdaS_index, lambdaT_index);
+
+	// Computation of nonparametric part: it is done here since it is PDE dependent
+	Real non_parametric_value = 0;
+
+	VectorXr Lf;
+
+	Lf.resize(this->_solution(lambdaS_index,lambdaT_index).size()/2);
+	for(UInt i=0; i< Lf.size(); i++){
+	Lf(i) = this->_solution(lambdaS_index, lambdaT_index)(Lf.size() + i);
+	}
+
+	if(this->isSpaceVarying)
+	{
+
+	  if( this->inputData_.isSpaceTime() ){
+	 
+	   UInt M_ =  this->regression_.getM_();
+	   UInt N_ = this->regression_.getN_();
+	  
+	   VectorXr forcingTerm_correction_;
+	   forcingTerm_correction_.resize(M_*N_); // New size
+	  
+	   for(UInt i=0; i<N_; i++) // Update forcing term (i.e. repeat identically M_ times)
+	   {
+	   	for(UInt j=0; j<M_; j++)
+		{
+		 forcingTerm_correction_(i+j*N_) = this->forcingTerm(i);
+		}
+	   }
+	  
+	  	Lf = Lf - forcingTerm_correction_;
+	  }
+	  else{
+	  	Lf = Lf - this->forcingTerm;
+	  }
+	}
+
+	SpMat Int;
+	std::array<Real, 2> lambdaST = {
+	(*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
+		(*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]};
+	if (this->inputData_.isSpaceTime()) {
+	UInt correction_size = this->inputData_.getFlagParabolic() ? -1 : +2;
+		VectorXr intcoef(this->mesh_time_.size() + correction_size);
+		intcoef.setConstant(this->mesh_time_[1] - this->mesh_time_[0]);
+		intcoef(0) *= 0.5;
+		SpMat IN(this->mesh_.num_nodes(), this->mesh_.num_nodes());
+		IN.setIdentity();
+		SpMat tmp = intcoef.asDiagonal().toDenseMatrix().sparseView();
+		tmp = kroneckerProduct(tmp, IN);
+		Int.resize(tmp.rows(), tmp.cols());
+		Int = lambdaST[0] * (*this->regression_.getR0_()) * tmp;
+	} else {
+		Int.resize(this->mesh_.num_nodes(), this->mesh_.num_nodes());
+		Int = lambdaST[0] * (*this->regression_.getR0_());
+	}
+
+	non_parametric_value = Lf.transpose() * Int * Lf;
+
+	std::array<Real,2> returnObject{parametric_value, non_parametric_value};
+
+	return returnObject;
+}
 
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
@@ -215,6 +278,7 @@ FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::FPIRLS_GAM(const MeshHandler<ORDER,
   	  FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, inputData, optimizationData), scale_parameter_flag_(scale_parameter_flag), _scale_param(scale_param)
 {
   //Pre-allocate memory for all quatities
+  WeightsMatrix_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
   mu_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
   pseudoObservations_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
   G_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
@@ -232,6 +296,7 @@ FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::FPIRLS_GAM(const MeshHandler<ORDER,
 	FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, mesh_time, inputData, optimizationData), scale_parameter_flag_(scale_parameter_flag), _scale_param(scale_param)
 {
   //Pre-allocate memory for all quatities
+  WeightsMatrix_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
   mu_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
   pseudoObservations_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
   G_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
@@ -335,14 +400,10 @@ void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::update_parameters(const UInt& 
 // Other methods
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
-std::array<Real,2> FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_J(const UInt& lambdaS_index, const UInt& lambdaT_index){
-  // compute the functional J: it is divided in parametric and non parametric part
+Real FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_J_parametric(const UInt& lambdaS_index, const UInt& lambdaT_index){
+  
   Real parametric_value = 0;
-  Real non_parametric_value = 0;
   Real tmp;
-
-
-  VectorXr Lf;
 
   const VectorXr * z = this->inputData_.getInitialObservations();
 
@@ -351,62 +412,7 @@ std::array<Real,2> FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_J(const 
     parametric_value += tmp*tmp;
   }
 
-  Lf.resize(this->_solution(lambdaS_index,lambdaT_index).size()/2);
-  for(UInt i=0; i< Lf.size(); i++){
-    Lf(i) = this->_solution(lambdaS_index, lambdaT_index)(Lf.size() + i);
-  }
-
-  if(this->isSpaceVarying)
-  {
-
-      if( this->inputData_.isSpaceTime() ){
-     
-       UInt M_ =  this->regression_.getM_();
-       UInt N_ = this->regression_.getN_();
-      
-       VectorXr forcingTerm_correction_;
-       forcingTerm_correction_.resize(M_*N_); // New size
-      
-       for(UInt i=0; i<N_; i++) // Update forcing term (i.e. repeat identically M_ times)
-       {
-       	for(UInt j=0; j<M_; j++)
-        {
-         forcingTerm_correction_(i+j*N_) = this->forcingTerm(i);
-        }
-       }
-      
-      	Lf = Lf - forcingTerm_correction_;
-      }
-      else{
-      	Lf = Lf - this->forcingTerm;
-      }
-  }
-  
-  SpMat Int;
-  std::array<Real, 2> lambdaST = {
-  	(*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
-        (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]};
-  if (this->inputData_.isSpaceTime()) {
-  	UInt correction_size = this->inputData_.getFlagParabolic() ? -1 : +2;
-        VectorXr intcoef(this->mesh_time_.size() + correction_size);
-        intcoef.setConstant(this->mesh_time_[1] - this->mesh_time_[0]);
-        intcoef(0) *= 0.5;
-        SpMat IN(this->mesh_.num_nodes(), this->mesh_.num_nodes());
-        IN.setIdentity();
-        SpMat tmp = intcoef.asDiagonal().toDenseMatrix().sparseView();
-        tmp = kroneckerProduct(tmp, IN);
-        Int.resize(tmp.rows(), tmp.cols());
-        Int = lambdaST[0] * (*this->regression_.getR0_()) * tmp;
-    } else {
-        Int.resize(this->mesh_.num_nodes(), this->mesh_.num_nodes());
-        Int = lambdaST[0] * (*this->regression_.getR0_());
-    }
-    
-  non_parametric_value = Lf.transpose() * Int * Lf;
-
-  std::array<Real,2> returnObject{parametric_value, non_parametric_value};
-
-  return returnObject;
+  return parametric_value;
 }
 
 
@@ -416,7 +422,7 @@ void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UInt& lambda
         if (this->optimizationData_.get_DOF_evaluation() != "not_required") //in this case surely we have already the ls
         { // is DOF_matrix to be computed?
         this->regression_.computeDegreesOfFreedom(0, 0, (*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
-        					  (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]);
+        					  							(*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]);
         this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(0,0);
         }
         else this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(lambdaS_index, lambdaT_index);
@@ -425,7 +431,7 @@ void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UInt& lambda
         Real GCV_value = 0;
 
         for(UInt j=0; j < y->size();j++)
-        GCV_value += dev_function(mu_[lambdaS_index][lambdaT_index][j], (*y)[j]); //norm computation
+        	GCV_value += dev_function(mu_[lambdaS_index][lambdaT_index][j], (*y)[j]); //norm computation
 
         GCV_value *= y->size();
 
@@ -442,6 +448,7 @@ void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UInt& lambda
         }
 
 }
+
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::compute_variance_est(){
