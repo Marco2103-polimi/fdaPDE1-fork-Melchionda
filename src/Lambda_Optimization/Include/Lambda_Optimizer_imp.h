@@ -1024,7 +1024,10 @@ void GCV_Stochastic<InputCarrier, size>::update_dof(lambda::type<size> lambda)
         	// Solve the system
         	if(! this->the_carrier.get_model()->isIter())
         	{
-        		this->USTpsi = this->US_.transpose()*(*this->the_carrier.get_psip());
+        		if(this->the_carrier.get_Pp()->rows() == 0)
+        			this->USTpsi = this->US_.transpose()*(*this->the_carrier.get_psip());
+						else
+        			this->USTpsi = this->US_.transpose()*(*this->the_carrier.get_Pp())*(*this->the_carrier.get_psip());
 
         		// Define the first right hand side : | I  0 |^T * psi^T * Q * u
         		this->b = MatrixXr::Zero(2*nnodes, this->US_.cols());
