@@ -49,6 +49,13 @@
 #' triangle/tetrahedron is in the i-th region and 0 otherwise.
 #' This is needed only for areal data. In case of pointwise data, this parameter is set to \code{NULL}.
 #' @param areal.data.avg Boolean. It involves the computation of Areal Data. If \code{TRUE} the areal data are averaged, otherwise not.
+#' @param weights A vector of length #observations with the desired weights to assign to each of the observed data values in a Weighted Regression problem. 
+#' It it is left to NULL, the unweighted version of the Model is fit.
+#' @param rand.effects.covariates A #observations-by-#rand.effects.covariates matrix where each row represents the random effects covariates associated with
+#' the corresponding observed data value in \code{observations} and each column is a different covariate. 
+#' It is used in combination with \code{group_ids} to solve a Mixed Effects model.
+#' @param group_ids A vector of length #observations with the desired labels used to identify each of the observed data values with a specific group. 
+#' It is used in combination with \code{rand.effects.covariates} to solve a Mixed Effects model.
 #' @param search a flag to decide the search algorithm type (tree or naive or walking search algorithm).
 #' @param bary.locations A list with three vectors:
 #'  \code{locations}, location points which are same as the given locations options. (checks whether both locations are the same);
@@ -339,7 +346,7 @@
 smooth.FEM<-function(locations = NULL, observations, FEMbasis,
                      covariates = NULL, PDE_parameters = NULL, BC = NULL,
                      incidence_matrix = NULL, areal.data.avg = TRUE,
-                     weights = NULL,
+                     weights = NULL, rand.effects.covariates = NULL, group_ids = NULL,
                      search = "tree", bary.locations = NULL,
                      family = "gaussian", mu0 = NULL, scale.param = NULL, threshold.FPIRLS = 0.0002020, max.steps.FPIRLS = 15,
                      lambda.selection.criterion = "grid", DOF.evaluation = NULL, lambda.selection.lossfunction = NULL,
@@ -500,6 +507,24 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
     DOF.matrix = as.matrix(DOF.matrix)
   if(!is.null(weights))
     weights = as.matrix(weights)
+  
+  ## Mixed effects conversions and builds
+  if(!is.null(rand.effects.covariates)){
+    rand.effects.covariates = as.matrix(rand.effects.covariates)
+    
+    # Re-order the data so that observations belonging to the same groups are subsequent
+    group_ids = as.factor(group_ids)
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.sizes = unname(group_ids_tab)
+    new_order = order(group_ids)
+    
+    group_ids = group_ids[new_order]
+    rand.effects.covariates <- as.matrix(rand.effects.covariates[new_order, ])
+    covariates <- as.matrix(covariates[new_order, ])
+    observations <- as.matrix(observations[new_order, ])
+    locations <- as.matrix(locations[new_order, ])
+  }
 
   space_varying = checkSmoothingParameters(locations = locations, observations = observations, FEMbasis = FEMbasis,
     covariates = covariates, PDE_parameters = PDE_parameters, BC = BC,
@@ -555,6 +580,8 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   ################## End checking parameters, sizes and conversion #############################
   if(family == "gaussian")
   {
+    if(is.null(rand.effects.covariates)){
+      
     #----------------------------------------------------#
     ############# Standard Smooth method #################
     #----------------------------------------------------#
@@ -651,11 +678,32 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   	} 
   } else
   {
+    #-------------------------------------------------------------#
+    ############# Mixed Effects: FPIRLS algorithm #################
+    #-------------------------------------------------------------#
+    #(observations = observations, max.steps.FPIRLS = max.steps.FPIRLS, mu0 = mu0, scale.param = scale.param, threshold.FPIRLS = threshold.FPIRLS, family = family)
+    
+    if(is(FEMbasis$mesh, "mesh.2D") & is.null(PDE_parameters))
+    {
+      bigsol = NULL
+      bigsol = CPP_smooth.MixedEffects.FEM(locations = locations, observations = observations, FEMbasis = FEMbasis,
+                                           covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
+                                           incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
+                                           rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                           max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
+                                           search = search, bary.locations = bary.locations,
+                                           optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
+                                           DOF.matrix = DOF.matrix, GCV.inflation.factor = GCV.inflation.factor, lambda.optimization.tolerance = lambda.optimization.tolerance)
+      numnodes = nrow(FEMbasis$mesh$nodes)
+    }
+  }
+    else
+  {
     #----------------------------------------------------#
     ############# GAMs: FPIRLS algorithm #################
     #----------------------------------------------------#
     checkGAMParameters(observations = observations, max.steps.FPIRLS = max.steps.FPIRLS, mu0 = mu0, scale.param = scale.param, threshold.FPIRLS = threshold.FPIRLS, family = family)
-
+    
     if(is(FEMbasis$mesh, "mesh.2D") & is.null(PDE_parameters))
     {
       bigsol = NULL
