@@ -1992,4 +1992,81 @@ class MixedFERegression<GAMDataEllipticSpaceVarying>: public MixedFERegressionBa
 		}
 };
 
+// -- Mixed Effects PART --
+template<>
+class MixedFERegression<MixedEffectsDataLaplace>: public MixedFERegressionBase<RegressionData>
+{
+	public:
+		MixedFERegression(const RegressionData & regressionData, OptimizationData & optimizationData, UInt nnodes_):
+			MixedFERegressionBase<RegressionData>(regressionData, optimizationData, nnodes_) {};
+		
+		MixedFERegression(const std::vector<Real>& mesh_time, 
+			const RegressionData& regressionData, OptimizationData& optimizationData, UInt nnodes_): 
+				MixedFERegressionBase<RegressionData>(mesh_time, regressionData, optimizationData, nnodes_){};
+
+		template<UInt ORDER, UInt mydim, UInt ndim>
+		void preapply(const MeshHandler<ORDER,mydim,ndim> & mesh)
+		{
+			typedef EOExpr<Stiff> ETStiff; Stiff EStiff; ETStiff stiff(EStiff);
+			MixedFERegressionBase<RegressionData>::preapply(stiff, ForcingTerm(), mesh);
+		}
+};
+
+template<>
+class MixedFERegression<MixedEffectsDataElliptic>: public MixedFERegressionBase<RegressionDataElliptic>
+{
+	public:
+		MixedFERegression(const RegressionDataElliptic & regressionData, OptimizationData & optimizationData, UInt nnodes_):
+			MixedFERegressionBase<RegressionDataElliptic>(regressionData, optimizationData, nnodes_) {};
+		
+		MixedFERegression(const std::vector<Real>& mesh_time,
+                      const RegressionDataElliptic& regressionData, OptimizationData& optimizationData, UInt nnodes_): 
+                		MixedFERegressionBase<RegressionDataElliptic>(mesh_time, regressionData, optimizationData, nnodes_){};
+
+		template< UInt ORDER, UInt mydim, UInt ndim>
+		void preapply(const MeshHandler<ORDER,mydim,ndim> & mesh)
+		{
+			typedef EOExpr<Mass>  ETMass;  Mass EMass;   ETMass mass(EMass);
+			typedef EOExpr<Stiff> ETStiff; Stiff EStiff; ETStiff stiff(EStiff);
+			typedef EOExpr<Grad>  ETGrad;  Grad EGrad;   ETGrad grad(EGrad);
+
+	  		const Real& c = this->regressionData_.getC();
+	  		const Diffusion<PDEParameterOptions::Constant>& K = this->regressionData_.getK();
+	  		const Advection<PDEParameterOptions::Constant>& b = this->regressionData_.getBeta();
+
+			MixedFERegressionBase<RegressionDataElliptic>::preapply(c*mass+stiff[K]+b.dot(grad), ForcingTerm(), mesh);
+
+		}
+};
+
+template<>
+class MixedFERegression<MixedEffectsDataEllipticSpaceVarying>: public MixedFERegressionBase<RegressionDataEllipticSpaceVarying>
+{
+	public:
+		MixedFERegression(const RegressionDataEllipticSpaceVarying & regressionData, OptimizationData & optimizationData, UInt nnodes_):
+			MixedFERegressionBase<RegressionDataEllipticSpaceVarying>( regressionData, optimizationData, nnodes_) {};
+		
+		MixedFERegression(const std::vector<Real>& mesh_time, 
+			const RegressionDataEllipticSpaceVarying& regressionData, OptimizationData& optimizationData, UInt nnodes_): 		
+				MixedFERegressionBase<RegressionDataEllipticSpaceVarying>(mesh_time, regressionData, optimizationData, nnodes_){};
+
+		template<UInt ORDER, UInt mydim, UInt ndim>
+		void preapply(const MeshHandler<ORDER,mydim,ndim> & mesh)
+		{
+			typedef EOExpr<Mass>  ETMass;  Mass EMass;   ETMass mass(EMass);
+			typedef EOExpr<Stiff> ETStiff; Stiff EStiff; ETStiff stiff(EStiff);
+			typedef EOExpr<Grad>  ETGrad;  Grad EGrad;   ETGrad grad(EGrad);
+
+			const Reaction& c = this->regressionData_.getC();
+			const Diffusion<PDEParameterOptions::SpaceVarying>& K = this->regressionData_.getK();
+			const Advection<PDEParameterOptions::SpaceVarying>& b = this->regressionData_.getBeta();
+			const ForcingTerm& u= this->regressionData_.getU();
+
+			this->isSpaceVarying = TRUE;
+
+			MixedFERegressionBase<RegressionDataEllipticSpaceVarying>::preapply(c*mass+stiff[K]+b.dot(grad), u, mesh);
+
+		}
+};
+
 #endif
