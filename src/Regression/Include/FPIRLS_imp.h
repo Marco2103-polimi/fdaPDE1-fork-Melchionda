@@ -479,6 +479,355 @@ void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::additional_estimates()
 	compute_variance_est();
 }
 
+/*********** FPIRLS_MixedEffects Methods ************/
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::initialize_matrices()
+{	
+	// Compute and store Z_ and ZTZ_ for each group
+	UInt starting_i = 0;
+	for(UInt i=0; i<n_groups_; i++){
+		// Store Z_ of group i
+		Z_[i] = this->inputData_.getRandomEfectsCovariates()->block(starting_i, 0, group_sizes_[i], q_);
+		starting_i += group_sizes_[i];
+		
+		// Compute and store Z_TZ_ of group i
+		ZTZ_[i] = Z_[i].transpose() * Z_[i];
+	}
+	
+	// Compute the initial guess of D_
+	VectorXr D0(q_);
+	for(UInt k=0; k<q_; k++){
+		for(UInt i=0; i<n_groups_; i++){
+			for(UInt j=0; j<group_sizes_[i]; j++){
+				D0(k) += Z_[i](j,k) * Z_[i](j,k);
+			}
+		}
+		D0(k) = std::sqrt( D0(k)/n_groups_ ) * 3 / 8 ;
+	}	
+	
+	// Store it as the current D_ for each lambda to check
+	for(UInt i=0; i<this->optimizationData_.get_size_S() ; i++){
+		for(UInt j=0; j<this->optimizationData_.get_size_T() ; j++){
+			D_[i][j] = D0;
+		}
+	}
+
+	// Resize weights matrix
+	WeightsMatrix_.resize(this->lenS_, std::vector<std::vector<MatrixXr>>(this->lenT_));
+	for(UInt i=0; i<this->lenS_; i++){
+		for(UInt j=0; j<this->lenT_; j++){
+			//WeightsMatrix_[i][j].resize(n_groups_);
+			for(UInt k=0; k<n_groups_; k++){
+				WeightsMatrix_[i][j].push_back(MatrixXr(group_sizes_[k],group_sizes_[k]));
+			}
+		}
+	}
+
+	// Resize b_hat
+	b_hat_.resize(this->lenS_, std::vector<std::vector<VectorXr>>(this->lenT_));
+	for(UInt i=0; i<this->lenS_; i++){
+		for(UInt j=0; j<this->lenT_; j++){
+			b_hat_[i][j].resize(n_groups_, VectorXr(q_));
+		}
+	}
+}
+
+// Constructor
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::FPIRLS_MixedEffects(const MeshHandler<ORDER,mydim,ndim> & mesh, 
+													InputHandler & inputData, OptimizationData & optimizationData):
+		FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, inputData, optimizationData), 
+		group_sizes_(*inputData.getGroupSizes()), n_groups_(inputData.getGroupNumber()), q_(inputData.get_q())
+{
+	// Pre-allocate memory for all quatities
+	Z_.resize(n_groups_);
+	ZTZ_.resize(n_groups_, MatrixXr(q_, q_));
+	ZtildeTZtilde_.resize(n_groups_);
+	D_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+	Sigma_b_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+	
+	// Construct matrices ZTZ and initialize D_ for each lambda
+	initialize_matrices();
+	
+};
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::FPIRLS_MixedEffects(const MeshHandler<ORDER,mydim,ndim> & mesh, const std::vector<Real>& mesh_time, 
+													InputHandler & inputData, OptimizationData & optimizationData):
+		FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, mesh_time, inputData, optimizationData),
+		group_sizes_(*inputData.getGroupSizes()), n_groups_(inputData.getGroupNumber()), q_(inputData.get_q())
+{
+	// Pre-allocate memory for all quatities
+	Z_.resize(n_groups_);
+	ZTZ_.resize(n_groups_, MatrixXr(q_, q_));
+	ZtildeTZtilde_.resize(n_groups_);
+	D_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+	Sigma_b_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+	
+	// Construct matrices ZTZ and initialize D_ for each lambda
+	initialize_matrices();
+};
+
+
+// FPIRLS_MixedEffects methods
+
+// STEP (1) methods
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_ZtildeTZtilde(const UInt& lambdaS_index, const UInt& lambdaT_index){
+
+	for(auto i=0; i<n_groups_; i++){
+		
+		// Foe each group, consider Z^T Z
+		MatrixXr ZtildeTZtilde_temp = ZTZ_[i];
+		
+		// Then add the diagonal elements stored in D_
+		for(auto k=0; k<q_; k++){
+			ZtildeTZtilde_temp(k,k) += D_[lambdaS_index][lambdaT_index](k) * D_[lambdaS_index][lambdaT_index](k);
+		}	
+		
+		ZtildeTZtilde_[i].compute(ZtildeTZtilde_temp);
+		
+	}
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_Weights(const UInt& lambdaS_index, const UInt& lambdaT_index){
+	// computed W blocktwise (it is a block diagonal matrix)
+	
+	//UInt starting_i = 0;
+	for(auto i=0; i < n_groups_; i++){
+		// Compute the current block with the Woodbury identity
+		this->WeightsMatrix_[lambdaS_index][lambdaT_index][i] = - Z_[i] * ZtildeTZtilde_[i].solve( Z_[i].transpose() );
+		
+		// Add the identity matrix (1 on the diagonal)
+		for(auto k=0; k < group_sizes_[i]; k++){
+			this->WeightsMatrix_[lambdaS_index][lambdaT_index][i](k,k) =  1 + this->WeightsMatrix_[lambdaS_index][lambdaT_index][i](k, k);	
+		}
+	}
+
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::prepare_weighted_regression(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+
+	// Compute Ztilde^T Ztilde
+	compute_ZtildeTZtilde(lambdaS_index, lambdaT_index);
+	
+	// Compute weights
+	compute_Weights(lambdaS_index, lambdaT_index);
+	
+	// Store weights in RegressionData (it makes them visible to the solver for step (2) of f-PIRLS)
+	this->inputData_.updateWeights(this->WeightsMatrix_[lambdaS_index][lambdaT_index]);
+	
+}
+
+
+
+// STEP (3) methods
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_bhat(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+
+	VectorXr const * y = this->inputData_.getObservations();
+	
+	UInt starting_i = 0;
+	for(auto i=0; i<n_groups_; i++){
+		
+		VectorXr y_i = y->segment(starting_i, group_sizes_[i]);
+		VectorXr y_i_hat = this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
+
+		UInt p = this->inputData_.getCovariates()->cols();
+		if( p > 0 ){
+			MatrixXr X_i = this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p);
+
+			y_i_hat = y_i_hat + X_i*this->_beta_hat(lambdaS_index,lambdaT_index);
+		}
+		
+		VectorXr res_i = y->segment(starting_i, group_sizes_[i]);
+		res_i -= this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
+		if( p > 0 ){
+			res_i -= this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p)*this->_beta_hat(lambdaS_index,lambdaT_index);
+		}
+
+		b_hat_[lambdaS_index][lambdaT_index][i] = ZtildeTZtilde_[i].solve( Z_[i].transpose() * res_i );
+		
+		starting_i += group_sizes_[i];
+	}
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_sigma_sq_hat(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+
+	this->regression_.computeDegreesOfFreedom(0, 0, (*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
+							  (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]  );
+	this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(0,0);
+
+	sigma_sq_hat_ = 0;	
+
+	const VectorXr * y = this->inputData_.getObservations();
+	
+	UInt starting_i = 0;
+	for(auto i=0; i<n_groups_; i++){
+		
+		// log-likelihood of observations
+		VectorXr res_i = y->segment(starting_i, group_sizes_[i]);
+		
+		//VectorXr f_n_hat_i = ;
+		VectorXr f_n_hat_i = this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
+		res_i -= ( f_n_hat_i + Z_[i]*b_hat_[lambdaS_index][lambdaT_index][i] );
+
+		UInt p = this->inputData_.getCovariates()->cols();
+		if( p > 0 ){
+			MatrixXr X_i = this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p);
+			res_i -= ( X_i*this->_beta_hat(lambdaS_index,lambdaT_index) );
+		}
+		sigma_sq_hat_ += res_i.dot(res_i);
+		
+		starting_i += group_sizes_[i];
+	}
+	
+	sigma_sq_hat_ /= (y->size() - this->_dof(lambdaS_index, lambdaT_index));
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::build_LTL(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+
+	MatrixXr LTL_temp = MatrixXr::Zero(q_, q_);
+	
+	for(auto i=0; i<n_groups_; i++){
+	
+		LTL_temp += b_hat_[lambdaS_index][lambdaT_index][i]*(b_hat_[lambdaS_index][lambdaT_index][i]).transpose() / sigma_sq_hat_;
+		LTL_temp += ZtildeTZtilde_[i].solve(MatrixXr::Identity(q_, q_));
+	}
+	
+	LTL_.compute(LTL_temp);
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_A(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+
+	MatrixXr A_temp = LTL_.matrixL();
+	
+	A_ = A_temp.triangularView<Eigen::Lower>().solve( MatrixXr::Identity(q_, q_) );
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::update_parameters(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+	compute_bhat(lambdaS_index, lambdaT_index);
+	
+	compute_sigma_sq_hat(lambdaS_index, lambdaT_index);
+
+	build_LTL(lambdaS_index, lambdaT_index);
+
+	compute_A(lambdaS_index, lambdaT_index);
+
+	for(auto i=0; i<q_; i++){
+		D_[lambdaS_index][lambdaT_index](i) = A_(i,i) * std::sqrt(n_groups_);
+	}
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+Real FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_J_parametric(const UInt& lambdaS_index, const UInt& lambdaT_index) 
+{
+	Real parametric_value = 0;
+
+	parametric_value += /*y->size() -*/ this->_dof(lambdaS_index, lambdaT_index);
+
+	const VectorXr * y = this->inputData_.getObservations();
+
+	parametric_value -= ( n_groups_*q_ - y->size() ) * std::log(sigma_sq_hat_);
+	
+	UInt starting_i = 0;
+	for(auto i=0; i<n_groups_; i++){
+		
+		// log-likelihood of random effects	(completed outside the for cycle)
+		VectorXr Db_i = D_[lambdaS_index][lambdaT_index].asDiagonal() * b_hat_[lambdaS_index][lambdaT_index][i];
+		parametric_value -= sigma_sq_hat_ * ( Db_i ).dot( Db_i );
+		
+		starting_i += group_sizes_[i];
+	}
+	
+	// Compute the determinant of D 	(NOTE: D is a diagonal matrix stored in a vector!)
+	Real detD = 1;
+	for(auto k=0; k<q_; k++){
+		detD *= D_[lambdaS_index][lambdaT_index][k];
+	}
+	parametric_value += 2 * n_groups_ * std::log(detD);
+
+	return parametric_value/2 ;
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::additional_estimates()
+{
+	for(UInt i=0; i < this->lenS_;i++){
+    	for(UInt j=0; j< this->lenT_; j++){ 
+			Sigma_b_[i][j] = D_[i][j];
+			
+			for(auto k=0; k<q_; k++){
+				Sigma_b_[i][j](k) *= D_[i][j](k);
+				Sigma_b_[i][j](k) = 1/Sigma_b_[i][j](k);
+			}
+		}
+	}
+}
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UInt& lambdaS_index, const UInt& lambdaT_index)
+{
+	
+	const VectorXr * y = this->inputData_.getObservations();
+	Real GCV_value = 0;
+	
+	UInt starting_i = 0;
+	for(auto i=0; i<n_groups_; i++){
+		
+		VectorXr res_i = (*y).segment(starting_i, group_sizes_[i]);
+
+		MatrixXr f_n_hat_i = this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
+		res_i -= ( f_n_hat_i + Z_[i]*b_hat_[lambdaS_index][lambdaT_index][i] );
+
+		UInt p = this->inputData_.getCovariates()->cols();
+		if( p > 0 ){
+			MatrixXr X_i = this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p);
+			res_i = res_i - X_i*this->_beta_hat(lambdaS_index,lambdaT_index);
+		}
+		GCV_value += res_i.dot(res_i);
+		
+		starting_i += group_sizes_[i];
+	}
+
+	GCV_value *= y->size();
+
+	GCV_value /= (y->size()-this->optimizationData_.get_tuning()*this->_dof(lambdaS_index,lambdaT_index))*(y->size()-this->optimizationData_.get_tuning()*this->_dof(lambdaS_index,lambdaT_index));
+
+	this->_GCV[lambdaS_index][lambdaT_index] = GCV_value;
+
+	//best lambda
+	if(GCV_value < this->optimizationData_.get_best_value())
+	{
+		std::cout << "updating GCV!" << std::endl;
+		this->optimizationData_.set_best_lambda_S(lambdaS_index);
+		this->optimizationData_.set_best_lambda_T(lambdaT_index);
+		this->optimizationData_.set_best_value(GCV_value);
+	}
+
+}
 
 
 #endif
