@@ -3,11 +3,12 @@
 #include "../../Skeletons/Include/Regression_Skeleton_Time.h"
 #include "../../Skeletons/Include/GAM_Skeleton.h"
 #include "../../Skeletons/Include/GAM_Skeleton_time.h"
+#include "../../Skeletons/Include/MixedEffects_Skeleton.h"
 #include "../Include/Regression_Data.h"
 #include "../../FE_Assemblers_Solvers/Include/Integration.h"
 #include "../../Lambda_Optimization/Include/Optimization_Data.h"
 
-// GAM
+// GAM + Mixed Effects
 #include "../Include/FPIRLS.h"
 #include "../Include/FPIRLS_Factory.h"
 
@@ -291,5 +292,78 @@ extern "C"
 			return(GAM_skeleton_time<GAMDataLaplace, 2, 1, 2>(regressionData, optimizationData, Rmesh, Rmesh_time, Rmu0, family, RscaleParam));	
 
 	    	return(NILSXP);
+	}
+
+	//! This function manages the various options for Mixed Effects Spatial Regression
+	/*!
+		This function is then called from R code.
+		\param Rlocations an R-matrix containing the spatial locations of the observations
+		\param RbaryLocations A list with three vectors:
+				location points which are same as the given locations options (to checks whether both locations are the same),
+				a vector of element id of the points from the mesh where they are located,
+				a vector of barycenter of points from the located element.
+		\param Robservations an R-vector containing the values of the observations.
+		\param Rmesh an R-object containg the output mesh from Trilibrary
+		\param Rorder an R-integer containing the order of the approximating basis.
+		\param Rmydim an R-integer specifying if the mesh nodes lie in R^2 or R^3
+		\param Rndim  an R-integer specifying if the "local dimension" is 2 or 3
+		\param Rcovariates an R-matrix of covariates for the regression model
+		\param RBCIndices an R-integer containing the indexes of the nodes the user want to apply a Dirichlet Condition,
+				the other are automatically considered in Neumann Condition.
+		\param RBCValues an R-double containing the value to impose for the Dirichlet condition, on the indexes specified in RBCIndices
+		\param RincidenceMatrix an R-matrix containing the incidence matrix defining the regions for the smooth regression with areal data
+		\param RarealDataAvg an R boolean indicating whether the areal data are averaged or not.
+		\param Rmax_num_iteration Maximum number of steps run in the PIRLS algorithm, set to 15 by default.
+		\param Rtreshold an R-double used for arresting FPIRLS algorithm. Algorithm stops when two successive iterations lead to improvement in penalized log-likelihood smaller than threshold.
+		\param Rtune It is usually set to 1, but may be higher. It gives more weight to the equivalent degrees of freedom in the computation of the value of the GCV.
+		\param Rsearch an R-integer to decide the search algorithm type (tree or naive search algorithm).
+		\param Roptim optimzation type, DOF evaluation and loss function used coded as integer vector
+		\param Rlambda a vector containing the penalization term of the empirical evidence respect to the prior one. or initial codition for optimized methods
+		\param Rnrealizations integer, the number of random points used in the stochastic computation of the dofs
+		\param Rseed integer, user defined seed for stochastic DOF computation methods
+		\param RDOF_matrix user provided DOF matrix for GCV computation
+		\param Rtune a R-double, Tuning parameter used for the estimation of GCV. called 'GCV.inflation.factor' in R code.
+		\param Rsct user defined stopping criterion tolerance for optimized methods (newton or newton with finite differences)
+		\param Rrandom_effects_covariates an R-matrix of Random Effects covariates for the mixed Effects Regression Model
+		\param Rgroup_sizes an R-vector containing the size of each group
+		\param Rn_groups an R-integer storing the number of groups
+		\return R-vectors containg the coefficients of the solution, prediction of the values, optimization data and much more
+	*/
+	 SEXP MixedEffects_Laplace(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rmesh, SEXP Rorder,SEXP Rmydim, SEXP Rndim,
+		SEXP Rcovariates,  SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg,
+		SEXP Rmax_num_iteration, SEXP Rtreshold, SEXP Rsearch,
+		SEXP Roptim, SEXP Rlambda, SEXP Rnrealizations, SEXP Rseed, SEXP RDOF_matrix, SEXP Rtune, SEXP Rsct,
+		SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups)
+	{
+	    	// Set up the MixedEffectsata structure for the laplacian case
+		MixedEffectsDataLaplace regressionData(Rlocations, RbaryLocations, Robservations, Rorder, 
+							 Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, Rsearch, 
+							 Rmax_num_iteration, Rtreshold,
+							 Rrandom_effects_covariates, Rgroup_sizes, Rn_groups);
+		OptimizationData optimizationData(Roptim, Rlambda, Rnrealizations, Rseed, RDOF_matrix, Rtune, Rsct);
+
+	 	UInt mydim = INTEGER(Rmydim)[0]; // Set the mesh dimension form R to C++
+		UInt ndim = INTEGER(Rndim)[0]; // Set the mesh space dimension form R to C++
+
+		std::cout << "memory allocated" << std::endl;
+
+		if(regressionData.getOrder()==1 && mydim==2 && ndim==2)
+			return(MixedEffects_skeleton<MixedEffectsDataLaplace, 1, 2, 2>(regressionData, optimizationData, Rmesh));
+		else if(regressionData.getOrder()==2 && mydim==2 && ndim==2)
+			return(MixedEffects_skeleton<MixedEffectsDataLaplace, 2, 2, 2>(regressionData, optimizationData, Rmesh));
+		else if(regressionData.getOrder()==1 && mydim==2 && ndim==3)
+			return(MixedEffects_skeleton<MixedEffectsDataLaplace, 1, 2, 3>(regressionData, optimizationData, Rmesh));
+		else if(regressionData.getOrder()==2 && mydim==2 && ndim==3)
+			return(MixedEffects_skeleton<MixedEffectsDataLaplace, 2, 2, 3>(regressionData, optimizationData, Rmesh));
+		else if(regressionData.getOrder()==1 && mydim==3 && ndim==3)
+			return(MixedEffects_skeleton<MixedEffectsDataLaplace, 1, 3, 3>(regressionData, optimizationData, Rmesh));
+		else if(regressionData.getOrder()==2 && mydim==3 && ndim==3)
+			return(MixedEffects_skeleton<MixedEffectsDataLaplace, 2, 3, 3>(regressionData, optimizationData, Rmesh));
+		else if(regressionData.getOrder()==1 && mydim==1 && ndim==2)
+    		return(MixedEffects_skeleton<MixedEffectsDataLaplace, 1, 1, 2>(regressionData, optimizationData, Rmesh));
+    	else if(regressionData.getOrder()==2 && mydim==1 && ndim==2)
+    		return(MixedEffects_skeleton<MixedEffectsDataLaplace, 2, 1, 2>(regressionData, optimizationData, Rmesh));
+
+	return(R_NilValue);
 	}
 }
