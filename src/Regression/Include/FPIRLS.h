@@ -90,6 +90,8 @@ class FPIRLS_Base {
    inline MatrixXv const & getFunctionEst() const{return _fn_hat;}
    //! An inline member that returns a the computed (or not) GCV estimates. If GCV is not computed, -1 is returned
    inline std::vector<std::vector<Real>> const & getGCV() const{return _GCV;}
+   //! An inline member that return the number of iterations for each lambda
+   inline std::vector<std::vector<UInt>> const & getIterations() const{return n_iterations;}
 
 
    //! A method returning the computed barycenters of the locationss
@@ -335,6 +337,92 @@ class FPIRLS_Gamma : public FPIRLS_GAM <InputHandler, ORDER, mydim, ndim> {
     InputHandler& inputData, OptimizationData & optimizationData, VectorXr mu0, bool scale_parameter_flag, Real scale_param):
       FPIRLS_GAM<InputHandler, ORDER, mydim, ndim>(mesh, mesh_time, inputData, optimizationData, mu0, scale_parameter_flag, scale_param){};  
 
+};
+
+
+
+//------------- Mixed Effects Models Specification ----------------
+
+//! @brief A class that specify the solver traits needed to deal with GAM problems
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+class FPIRLS_MixedEffects : public FPIRLS <InputHandler, ORDER, mydim, ndim> {
+	
+  protected:
+
+	std::vector<std::vector<std::vector<MatrixXr>>> WeightsMatrix_; //!< It contains the estimated weights for each {group, lambda_S, lambda_T} in the grid evaluation
+	
+	const UInt q_; //!< It contains the number of the Random Effects
+	const UInt n_groups_;						//!< It contains the number of groups
+	const std::vector<UInt> group_sizes_;				//!< It contains the number of observations for each group
+	
+	std::vector< MatrixXr > Z_; //!< It contains the Rando Effects design matrix for each group
+	std::vector<MatrixXr> ZTZ_; //!< It atores the result of of [Z_^t Z_] for each group
+	std::vector<Eigen::LLT<MatrixXr>> ZtildeTZtilde_; //!< It contains the LLT decomposition of the matrix [Ztilde_i^t Ztilde_i] (computed directly) for each group
+	std::vector<std::vector<std::vector<VectorXr>>> b_hat_; //!< It contains the prediction of b_i for each {group, lambda_S, lambda_T}
+	Eigen::LLT<MatrixXr> LTL_; //!< It contains the LLT decomposition of the matrix [L^t L]
+	MatrixXr A_; //!< It contains matrix A
+	std::vector<std::vector<VectorXr>> D_; //!< It contains the current estimate of the precision matrix of the Random Effects for each {lambda_S, lambda_T}
+	std::vector<std::vector<VectorXr>> Sigma_b_; //!< It contains the final estimate of the covariance struction of the Rando Effects for each {lambda_S, lambda_T}
+	Real sigma_sq_hat_; //!< It contains the current estimate of sigma square
+
+	Real counter = 0;
+	
+	// Constructor utilities
+
+	//! A method to compute ZTZ and the initial guess for D_
+	void initialize_matrices();
+
+	// Methods to implement Step (1) of f-PIRLS:
+	
+	//! A method used to compute Z ZtildeTZtildeinv_
+	void compute_ZtildeTZtilde(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! A method that assembles the weights matrix (a block diagonal matrix). It takes advantage of the Woodbury Identity
+	void compute_Weights(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! Step (1). A method that computes the weights and everything else required to perform the weighted regression
+	void prepare_weighted_regression(const UInt& lambdaS_index, const UInt& lambdaT_index); 
+	      
+	// Methods to implement Step (3) of f-PIRLS
+	
+	//! A method that performs the E step of the EM procedure. It initializes step (3) of F-PIRLS.
+	void compute_bhat(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! A method that estimates the value of sigma^2
+	void compute_sigma_sq_hat(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! A method that builds and decomposes matrix [L^t L]
+	void build_LTL(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! A method that computes matrix A
+	void compute_A(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! A method that performs the M step of the EM procedure. It finalizes step (3) of F-PIRLS.
+	//void maximization_step(const UInt& lambdaS_index, const UInt& lambdaT_index) {return;};
+	//! Step (3). A method that uses the result of the weighted regression to finalize one iteration of the f-PIRLS algorithm and update various parameters
+	void update_parameters(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	      
+	// Other methods
+
+	//! A method that computes and return the parametric part of the functional J.
+	Real compute_J_parametric(const UInt& lambdaS_index, const UInt& lambdaT_index);
+	//! A method that computes the estimates of the variance-covariance structure of the random effects.
+	void additional_estimates();
+
+
+
+  public:
+
+	FPIRLS_MixedEffects(const MeshHandler<ORDER,mydim,ndim>& mesh, 
+	  			InputHandler& inputData, OptimizationData & optimizationData); // Constructor
+	    
+	FPIRLS_MixedEffects(const MeshHandler<ORDER,mydim,ndim>& mesh, const std::vector<Real>& mesh_time,
+	   			InputHandler& inputData, OptimizationData & optimizationData); // Constructor
+
+	//! A method that computes the GCV value for a given lambda.
+	void compute_GCV(const UInt& lambdaS_index, const UInt& lambdaT_index);
+
+	// Getters
+	std::vector<std::vector<VectorXr>> const getSigma_b(void) const {return Sigma_b_;};
+	std::vector<std::vector<std::vector<VectorXr>>> const get_b_hat(void) const {return b_hat_;};
+
+	//! A destructor
+	~FPIRLS_MixedEffects() = default;
+	
 };
 
 
