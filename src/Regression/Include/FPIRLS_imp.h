@@ -821,7 +821,6 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UIn
 	//best lambda
 	if(GCV_value < this->optimizationData_.get_best_value())
 	{
-		std::cout << "updating GCV!" << std::endl;
 		this->optimizationData_.set_best_lambda_S(lambdaS_index);
 		this->optimizationData_.set_best_lambda_T(lambdaT_index);
 		this->optimizationData_.set_best_value(GCV_value);

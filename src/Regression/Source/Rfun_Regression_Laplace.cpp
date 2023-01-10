@@ -345,8 +345,6 @@ extern "C"
 	 	UInt mydim = INTEGER(Rmydim)[0]; // Set the mesh dimension form R to C++
 		UInt ndim = INTEGER(Rndim)[0]; // Set the mesh space dimension form R to C++
 
-		std::cout << "memory allocated" << std::endl;
-
 		if(regressionData.getOrder()==1 && mydim==2 && ndim==2)
 			return(MixedEffects_skeleton<MixedEffectsDataLaplace, 1, 2, 2>(regressionData, optimizationData, Rmesh));
 		else if(regressionData.getOrder()==2 && mydim==2 && ndim==2)
