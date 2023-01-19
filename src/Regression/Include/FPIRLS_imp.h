@@ -482,14 +482,38 @@ void FPIRLS_GAM<InputHandler,ORDER, mydim, ndim>::additional_estimates()
 /*********** FPIRLS_MixedEffects Methods ************/
 
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+VectorXr FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::vector_indexing(const VectorXr * big_vector, const std::vector<UInt> ids){
+
+	VectorXr small_vector(ids.size());
+	
+	for(UInt k=0; k<ids.size(); k++){
+		small_vector.coeffRef(k) = (*big_vector)(ids[k]);
+	}
+	
+	return small_vector;
+}
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
+MatrixXr FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::matrix_indexing(const MatrixXr * big_matrix, const std::vector<UInt> ids){
+
+	MatrixXr small_matrix(ids.size(), big_matrix->cols());
+	
+	for(UInt k=0; k<ids.size(); k++){
+		small_matrix.row(k) = big_matrix->row(ids[k]);
+	}
+	
+	return small_matrix;
+}
+
+
+
+template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::initialize_matrices()
 {	
 	// Compute and store Z_ and ZTZ_ for each group
-	UInt starting_i = 0;
 	for(UInt i=0; i<n_groups_; i++){
 		// Store Z_ of group i
-		Z_[i] = this->inputData_.getRandomEfectsCovariates()->block(starting_i, 0, group_sizes_[i], q_);
-		starting_i += group_sizes_[i];
+		Z_[i] = matrix_indexing(this->inputData_.getRandomEfectsCovariates(), ids_perm_[i]);
 		
 		// Compute and store Z_TZ_ of group i
 		ZTZ_[i] = Z_[i].transpose() * Z_[i];
@@ -538,7 +562,7 @@ template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::FPIRLS_MixedEffects(const MeshHandler<ORDER,mydim,ndim> & mesh, 
 													InputHandler & inputData, OptimizationData & optimizationData):
 		FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, inputData, optimizationData), 
-		group_sizes_(*inputData.getGroupSizes()), n_groups_(inputData.getGroupNumber()), q_(inputData.get_q())
+		group_sizes_(*inputData.getGroupSizes()), n_groups_(inputData.getGroupNumber()), q_(inputData.get_q()), ids_perm_(*inputData.getIdsPerm())
 {
 	// Pre-allocate memory for all quatities
 	Z_.resize(n_groups_);
@@ -556,7 +580,7 @@ template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::FPIRLS_MixedEffects(const MeshHandler<ORDER,mydim,ndim> & mesh, const std::vector<Real>& mesh_time, 
 													InputHandler & inputData, OptimizationData & optimizationData):
 		FPIRLS<InputHandler,ORDER, mydim, ndim>(mesh, mesh_time, inputData, optimizationData),
-		group_sizes_(*inputData.getGroupSizes()), n_groups_(inputData.getGroupNumber()), q_(inputData.get_q())
+		group_sizes_(*inputData.getGroupSizes()), n_groups_(inputData.getGroupNumber()), q_(inputData.get_q()), ids_perm_(*inputData.getIdsPerm())
 {
 	// Pre-allocate memory for all quatities
 	Z_.resize(n_groups_);
@@ -596,7 +620,6 @@ template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_Weights(const UInt& lambdaS_index, const UInt& lambdaT_index){
 	// computed W blocktwise (it is a block diagonal matrix)
 	
-	//UInt starting_i = 0;
 	for(auto i=0; i < n_groups_; i++){
 		// Compute the current block with the Woodbury identity
 		this->WeightsMatrix_[lambdaS_index][lambdaT_index][i] = - Z_[i] * ZtildeTZtilde_[i].solve( Z_[i].transpose() );
@@ -634,28 +657,17 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_bhat(const UI
 
 	VectorXr const * y = this->inputData_.getObservations();
 	
-	UInt starting_i = 0;
 	for(auto i=0; i<n_groups_; i++){
 		
-		VectorXr y_i = y->segment(starting_i, group_sizes_[i]);
-		VectorXr y_i_hat = this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
-
-		UInt p = this->inputData_.getCovariates()->cols();
-		if( p > 0 ){
-			MatrixXr X_i = this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p);
-
-			y_i_hat = y_i_hat + X_i*this->_beta_hat(lambdaS_index,lambdaT_index);
-		}
+		VectorXr res_i = vector_indexing(y, ids_perm_[i]);
+		res_i -= vector_indexing(&this->_fn_hat(lambdaS_index,lambdaT_index), ids_perm_[i]);
 		
-		VectorXr res_i = y->segment(starting_i, group_sizes_[i]);
-		res_i -= this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
-		if( p > 0 ){
-			res_i -= this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p)*this->_beta_hat(lambdaS_index,lambdaT_index);
+		if( this->inputData_.getCovariates()->rows() > 0 ){
+			MatrixXr X_i = matrix_indexing(this->inputData_.getCovariates(), ids_perm_[i]);
+			res_i -= X_i*this->_beta_hat(lambdaS_index,lambdaT_index);
 		}
 
 		b_hat_[lambdaS_index][lambdaT_index][i] = ZtildeTZtilde_[i].solve( Z_[i].transpose() * res_i );
-		
-		starting_i += group_sizes_[i];
 	}
 }
 
@@ -672,24 +684,20 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_sigma_sq_hat(
 
 	const VectorXr * y = this->inputData_.getObservations();
 	
-	UInt starting_i = 0;
 	for(auto i=0; i<n_groups_; i++){
 		
 		// log-likelihood of observations
-		VectorXr res_i = y->segment(starting_i, group_sizes_[i]);
 		
-		//VectorXr f_n_hat_i = ;
-		VectorXr f_n_hat_i = this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
+		VectorXr res_i = vector_indexing(y, ids_perm_[i]);
+		
+		VectorXr f_n_hat_i = vector_indexing(&this->_fn_hat(lambdaS_index,lambdaT_index), ids_perm_[i]);
 		res_i -= ( f_n_hat_i + Z_[i]*b_hat_[lambdaS_index][lambdaT_index][i] );
 
-		UInt p = this->inputData_.getCovariates()->cols();
-		if( p > 0 ){
-			MatrixXr X_i = this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p);
+		if( this->inputData_.getCovariates()->rows() > 0 ){
+			MatrixXr X_i = matrix_indexing(this->inputData_.getCovariates(), ids_perm_[i]);
 			res_i -= ( X_i*this->_beta_hat(lambdaS_index,lambdaT_index) );
 		}
 		sigma_sq_hat_ += res_i.dot(res_i);
-		
-		starting_i += group_sizes_[i];
 	}
 	
 	sigma_sq_hat_ /= (y->size() - this->_dof(lambdaS_index, lambdaT_index));
@@ -744,20 +752,18 @@ Real FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_J_parametric(
 {
 	Real parametric_value = 0;
 
-	parametric_value += /*y->size() -*/ this->_dof(lambdaS_index, lambdaT_index);
+	parametric_value += this->_dof(lambdaS_index, lambdaT_index);
 
 	const VectorXr * y = this->inputData_.getObservations();
 
 	parametric_value -= ( n_groups_*q_ - y->size() ) * std::log(sigma_sq_hat_);
 	
-	UInt starting_i = 0;
 	for(auto i=0; i<n_groups_; i++){
 		
 		// log-likelihood of random effects	(completed outside the for cycle)
 		VectorXr Db_i = D_[lambdaS_index][lambdaT_index].asDiagonal() * b_hat_[lambdaS_index][lambdaT_index][i];
 		parametric_value -= sigma_sq_hat_ * ( Db_i ).dot( Db_i );
 		
-		starting_i += group_sizes_[i];
 	}
 	
 	// Compute the determinant of D 	(NOTE: D is a diagonal matrix stored in a vector!)
@@ -794,22 +800,19 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UIn
 	const VectorXr * y = this->inputData_.getObservations();
 	Real GCV_value = 0;
 	
-	UInt starting_i = 0;
 	for(auto i=0; i<n_groups_; i++){
 		
-		VectorXr res_i = (*y).segment(starting_i, group_sizes_[i]);
+		VectorXr res_i = vector_indexing(y, ids_perm_[i]);
 
-		MatrixXr f_n_hat_i = this->_fn_hat(lambdaS_index,lambdaT_index).segment(starting_i, group_sizes_[i]);
+		MatrixXr f_n_hat_i = vector_indexing(&this->_fn_hat(lambdaS_index,lambdaT_index), ids_perm_[i]);
 		res_i -= ( f_n_hat_i + Z_[i]*b_hat_[lambdaS_index][lambdaT_index][i] );
 
-		UInt p = this->inputData_.getCovariates()->cols();
-		if( p > 0 ){
-			MatrixXr X_i = this->inputData_.getCovariates()->block(starting_i, 0, group_sizes_[i], p);
+		if( this->inputData_.getCovariates()->rows() > 0 ){
+			MatrixXr X_i = matrix_indexing(this->inputData_.getCovariates(), ids_perm_[i]);
 			res_i = res_i - X_i*this->_beta_hat(lambdaS_index,lambdaT_index);
 		}
 		GCV_value += res_i.dot(res_i);
 		
-		starting_i += group_sizes_[i];
 	}
 
 	GCV_value *= y->size();

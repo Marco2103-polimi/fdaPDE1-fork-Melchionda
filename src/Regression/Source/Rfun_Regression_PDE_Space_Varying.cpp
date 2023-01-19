@@ -329,12 +329,12 @@ extern "C"
           					SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Ru, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg,
           					SEXP Rmax_num_iteration, SEXP Rtreshold, SEXP Rsearch,
                 				SEXP Roptim, SEXP Rlambda, SEXP Rnrealizations, SEXP Rseed, SEXP RDOF_matrix, SEXP Rtune, SEXP Rsct,
-                				SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups)
+                				SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups)
         {
         	MixedEffectsDataEllipticSpaceVarying regressionData(Rlocations, RbaryLocations, Robservations, Rorder, 
         								RK, Rbeta, Rc, Ru, Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, Rsearch,
         								Rmax_num_iteration, Rtreshold,
-        								Rrandom_effects_covariates, Rgroup_sizes, Rn_groups);
+        								Rrandom_effects_covariates, Rgroup_ids, Rn_groups);
                 OptimizationData optimizationData(Roptim, Rlambda, Rnrealizations, Rseed, RDOF_matrix, Rtune, Rsct);
 
         	UInt mydim = INTEGER(Rmydim)[0];

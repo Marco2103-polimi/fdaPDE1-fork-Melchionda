@@ -512,18 +512,11 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   if(!is.null(rand.effects.covariates)){
     rand.effects.covariates = as.matrix(rand.effects.covariates)
     
-    # Re-order the data so that observations belonging to the same groups are subsequent
+    # Create utility quantities for Mixed Effects model
     group_ids = as.factor(group_ids)
     group_ids_tab = table(group_ids)
     n.groups = length(group_ids_tab)
-    group.sizes = unname(group_ids_tab)
-    new_order = order(group_ids)
-    
-    group_ids = group_ids[new_order]
-    rand.effects.covariates <- as.matrix(rand.effects.covariates[new_order, ])
-    covariates <- as.matrix(covariates[new_order, ])
-    observations <- as.matrix(observations[new_order, ])
-    locations <- as.matrix(locations[new_order, ])
+    group.ids = as.integer(group_ids)
   }
 
   space_varying = checkSmoothingParameters(locations = locations, observations = observations, FEMbasis = FEMbasis,
@@ -689,7 +682,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.MixedEffects.FEM(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                            covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
                                            incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                           rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                           rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                            max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                            search = search, bary.locations = bary.locations,
                                            optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
@@ -701,7 +694,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.MixedEffects.FEM.PDE.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                             covariates = covariates, PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
                                             incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                            rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                            rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                             max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                             search = search, bary.locations = bary.locations,
                                             optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
@@ -713,7 +706,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.MixedEffects.FEM.PDE.sv.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                                covariates = covariates, PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
                                                incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                               rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                               rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                                max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                                search = search, bary.locations = bary.locations,
                                                optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
@@ -727,7 +720,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.manifold.MixedEffects.FEM.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                                  covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
                                                  incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                                 rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                                 rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                                  max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                                  search = search, bary.locations = bary.locations,
                                                  optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
@@ -739,7 +732,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.volume.MixedEffects.FEM.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                                covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
                                                incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                               rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                               rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                                max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                                search = search, bary.locations = bary.locations,
                                                optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
@@ -751,7 +744,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.volume.MixedEffects.FEM.PDE.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                                    covariates = covariates, PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
                                                    incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                                   rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                                   rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                                    max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                                    search = search, bary.locations = bary.locations,
                                                    optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
@@ -763,7 +756,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.volume.MixedEffects.FEM.PDE.sv.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                                       covariates = covariates, PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, BC = BC,
                                                       incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                                      rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                                      rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                                       max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                                       search = search, bary.locations = bary.locations,
                                                       optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,
@@ -775,7 +768,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
       bigsol = CPP_smooth.graph.MixedEffects.FEM.basis(locations = locations, observations = observations, FEMbasis = FEMbasis,
                                               covariates = covariates, ndim = ndim, mydim = mydim, BC = BC,
                                               incidence_matrix = incidence_matrix, areal.data.avg = areal.data.avg,
-                                              rand.effects.covariates = rand.effects.covariates, group.sizes = group.sizes, n.groups = n.groups, 
+                                              rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
                                               max.steps.FPIRLS = max.steps.FPIRLS, threshold.FPIRLS = threshold.FPIRLS,
                                               search = search, bary.locations = bary.locations,
                                               optim = optim, lambda = lambda, DOF.stochastic.realizations = DOF.stochastic.realizations, DOF.stochastic.seed = DOF.stochastic.seed,

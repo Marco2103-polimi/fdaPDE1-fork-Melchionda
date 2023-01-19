@@ -1,10 +1,11 @@
-CPP_smooth.MixedEffects.FEM<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0002020, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1, lambda.optimization.tolerance = 0.05)
+CPP_smooth.MixedEffects.FEM<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0002020, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1, lambda.optimization.tolerance = 0.05)
 {
   # Indexes in C++ starts from 0, in R from 1, opporGCV.inflation.factor transformation
   FEMbasis$mesh$triangles = FEMbasis$mesh$triangles - 1
   FEMbasis$mesh$edges = FEMbasis$mesh$edges - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
   
   if(is.null(covariates))
   {
@@ -67,8 +68,8 @@ CPP_smooth.MixedEffects.FEM<-function(locations, observations, FEMbasis, covaria
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -88,13 +89,13 @@ CPP_smooth.MixedEffects.FEM<-function(locations, observations, FEMbasis, covaria
                   mydim, ndim, covariates, BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
                   max.steps.FPIRLS, threshold.FPIRLS, search,
                   optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance,
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
 }
 
 
-CPP_smooth.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
+CPP_smooth.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
 {
   # Indexes in C++ starts from 0, in R from 1, opporGCV.inflation.factor transformation
   FEMbasis$mesh$triangles = FEMbasis$mesh$triangles - 1
@@ -137,15 +138,6 @@ CPP_smooth.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasi
     BC$BC_values<-as.vector(BC$BC_values)
   }
   
-  if(is.null(mu0))
-  {
-    mu0<-matrix(nrow = 0, ncol = 1)
-  }
-  if(is.null(scale.param))
-  {
-    scale.param<- -1
-  }
-  
   if(is.null(lambda))
   {
     lambda<-vector(length=0)
@@ -177,8 +169,8 @@ CPP_smooth.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasi
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -198,12 +190,12 @@ CPP_smooth.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasi
                   mydim, ndim, PDE_parameters$K, PDE_parameters$b, PDE_parameters$c, covariates, BC$BC_indices, BC$BC_values,
                   incidence_matrix, areal.data.avg, max.steps.FPIRLS, threshold.FPIRLS, search,
                   optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, 
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
 }
 
-CPP_smooth.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
+CPP_smooth.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
 {
   # Indexes in C++ starts from 0, in R from 1, opporGCV.inflation.factor transformation
   FEMbasis$mesh$triangles = FEMbasis$mesh$triangles - 1
@@ -247,15 +239,6 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMb
     BC$BC_values<-as.vector(BC$BC_values) 
   }
   
-  if(is.null(mu0))
-  {
-    mu0<-matrix(nrow = 0, ncol = 1)
-  }
-  if(is.null(scale.param))
-  {
-    scale.param<- -1
-  }
-  
   if(is.null(lambda))
   {
     lambda<-vector(length=0)
@@ -293,8 +276,8 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMb
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -314,12 +297,12 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMb
                   mydim, ndim, PDE_param_eval$K, PDE_param_eval$b, PDE_param_eval$c, PDE_param_eval$u, covariates, BC$BC_indices, BC$BC_values,
                   incidence_matrix, areal.data.avg, max.steps.FPIRLS, threshold.FPIRLS,
                   search, optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, 
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
 }
 
-CPP_smooth.manifold.MixedEffects.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
+CPP_smooth.manifold.MixedEffects.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
 {
   
   FEMbasis$mesh$triangles = FEMbasis$mesh$triangles - 1
@@ -364,16 +347,6 @@ CPP_smooth.manifold.MixedEffects.FEM.basis<-function(locations, observations, FE
     BC$BC_values<-as.vector(BC$BC_values)
   }
   
-  if(is.null(mu0))
-  {
-    mu0<-matrix(nrow = 0, ncol = 1)
-  }
-  
-  if(is.null(scale.param))
-  {
-    scale.param<- -1
-  }
-  
   if(is.null(lambda))
   {
     lambda<-vector(length=0)
@@ -400,8 +373,8 @@ CPP_smooth.manifold.MixedEffects.FEM.basis<-function(locations, observations, FE
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -421,12 +394,12 @@ CPP_smooth.manifold.MixedEffects.FEM.basis<-function(locations, observations, FE
                   mydim, ndim, covariates, BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
                   max.steps.FPIRLS, threshold.FPIRLS, search, 
                   optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, 
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
 }
 
-CPP_smooth.volume.MixedEffects.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
+CPP_smooth.volume.MixedEffects.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
 {
   
   # Indexes in C++ starts from 0, in R from 1
@@ -471,16 +444,6 @@ CPP_smooth.volume.MixedEffects.FEM.basis<-function(locations, observations, FEMb
   }else
   {
     BC$BC_values<-as.vector(BC$BC_values)
-  }
-  
-  if(is.null(mu0))
-  {
-    mu0<-matrix(nrow = 0, ncol = 1)
-  }
-  
-  if(is.null(scale.param))
-  {
-    scale.param<- -1
   }
   
   if(is.null(lambda))
@@ -508,8 +471,8 @@ CPP_smooth.volume.MixedEffects.FEM.basis<-function(locations, observations, FEMb
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -529,12 +492,12 @@ CPP_smooth.volume.MixedEffects.FEM.basis<-function(locations, observations, FEMb
                   mydim, ndim, covariates, BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
                   max.steps.FPIRLS, threshold.FPIRLS, search,  
                   optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, 
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
 }
 
-CPP_smooth.volume.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
+CPP_smooth.volume.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
 {
   
   # Indexes in C++ starts from 0, in R from 1
@@ -579,16 +542,6 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.basis<-function(locations, observations, 
   }else
   {
     BC$BC_values<-as.vector(BC$BC_values)
-  }
-  
-  if(is.null(mu0))
-  {
-    mu0<-matrix(nrow = 0, ncol = 1)
-  }
-  
-  if(is.null(scale.param))
-  {
-    scale.param<- -1
   }
   
   if(is.null(lambda))
@@ -619,8 +572,8 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.basis<-function(locations, observations, 
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -640,12 +593,12 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.basis<-function(locations, observations, 
                   mydim, ndim, PDE_parameters$K, PDE_parameters$b, PDE_parameters$c, covariates, BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
                   max.steps.FPIRLS, threshold.FPIRLS, search,  
                   optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, 
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
 }
 
-CPP_smooth.volume.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
+CPP_smooth.volume.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMbasis, covariates = NULL, PDE_parameters, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
 {
   
   # Indexes in C++ starts from 0, in R from 1
@@ -690,16 +643,6 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.basis<-function(locations, observation
   }else
   {
     BC$BC_values<-as.vector(BC$BC_values)
-  }
-  
-  if(is.null(mu0))
-  {
-    mu0<-matrix(nrow = 0, ncol = 1)
-  }
-  
-  if(is.null(scale.param))
-  {
-    scale.param<- -1
   }
   
   if(is.null(lambda))
@@ -739,8 +682,8 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.basis<-function(locations, observation
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -760,12 +703,12 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.basis<-function(locations, observation
                   mydim, ndim, PDE_param_eval$K, PDE_param_eval$b, PDE_param_eval$c, PDE_param_eval$u, covariates, BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
                   max.steps.FPIRLS, threshold.FPIRLS, search,  
                   optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance, 
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
 }
 
-CPP_smooth.graph.MixedEffects.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.sizes, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
+CPP_smooth.graph.MixedEffects.FEM.basis<-function(locations, observations, FEMbasis, covariates = NULL, ndim, mydim, BC = NULL, incidence_matrix = NULL, areal.data.avg = FALSE, rand.effects.covariates, group.ids, n.groups, max.steps.FPIRLS = 15, threshold.FPIRLS = 0.0004, search, bary.locations, optim, lambda = NULL, DOF.stochastic.realizations = 100, DOF.stochastic.seed = 0, DOF.matrix = NULL, GCV.inflation.factor = 1.8, lambda.optimization.tolerance = 0.05)
 {
   # Indexes in C++ starts from 0, in R from 1, opporGCV.inflation.factor transformation
   FEMbasis$mesh$edges = FEMbasis$mesh$edges - 1
@@ -813,16 +756,6 @@ CPP_smooth.graph.MixedEffects.FEM.basis<-function(locations, observations, FEMba
     BC$BC_values<-as.vector(BC$BC_values)
   }
   
-  if(is.null(mu0))
-  {
-    mu0<-matrix(nrow = 0, ncol = 1)
-  }
-  
-  if(is.null(scale.param))
-  {
-    scale.param<- -1
-  } 
-  
   if(is.null(lambda))
   {
     lambda<-vector(length=0)
@@ -848,8 +781,8 @@ CPP_smooth.graph.MixedEffects.FEM.basis<-function(locations, observations, FEMba
   storage.mode(areal.data.avg) <-"integer"
   rand.effects.covariates <- as.matrix(rand.effects.covariates)
   storage.mode(rand.effects.covariates) <-"double"
-  group.sizes <- as.matrix(group.sizes)
-  storage.mode(group.sizes) <-"integer"
+  group.ids <- as.matrix(group.ids)
+  storage.mode(group.ids) <-"integer"
   storage.mode(n.groups) <- "integer"
   storage.mode(max.steps.FPIRLS) <- "integer"
   storage.mode(GCV.inflation.factor) <- "double"
@@ -869,7 +802,7 @@ CPP_smooth.graph.MixedEffects.FEM.basis<-function(locations, observations, FEMba
                   mydim, ndim, covariates, BC$BC_indices, BC$BC_values, incidence_matrix, areal.data.avg,
                   max.steps.FPIRLS, threshold.FPIRLS, search,
                   optim, lambda, DOF.stochastic.realizations, DOF.stochastic.seed, DOF.matrix, GCV.inflation.factor, lambda.optimization.tolerance,
-                  rand.effects.covariates, group.sizes, n.groups, PACKAGE = "fdaPDE")
+                  rand.effects.covariates, group.ids, n.groups, PACKAGE = "fdaPDE")
   
   return(bigsol)
   

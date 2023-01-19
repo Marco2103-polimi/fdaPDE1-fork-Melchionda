@@ -354,6 +354,7 @@ class FPIRLS_MixedEffects : public FPIRLS <InputHandler, ORDER, mydim, ndim> {
 	const UInt q_; //!< It contains the number of the Random Effects
 	const UInt n_groups_;						//!< It contains the number of groups
 	const std::vector<UInt> group_sizes_;				//!< It contains the number of observations for each group
+	const std::vector<std::vector<UInt>> ids_perm_;		//!< It contains the permutation map to link FPIRLS matrices to the solver matrices
 	
 	std::vector< MatrixXr > Z_; //!< It contains the Rando Effects design matrix for each group
 	std::vector<MatrixXr> ZTZ_; //!< It atores the result of of [Z_^t Z_] for each group
@@ -368,6 +369,10 @@ class FPIRLS_MixedEffects : public FPIRLS <InputHandler, ORDER, mydim, ndim> {
 	Real counter = 0;
 	
 	// Constructor utilities
+	
+	//! Two utilities functions to slice vector and matrices
+	VectorXr vector_indexing(const VectorXr * big_vector, const std::vector<UInt> ids);
+	MatrixXr matrix_indexing(const MatrixXr * big_matrix, const std::vector<UInt> ids);
 
 	//! A method to compute ZTZ and the initial guess for D_
 	void initialize_matrices();

@@ -132,17 +132,17 @@ void RegressionDataMixedEffects<RegressionHandler>::initializeWeights()
 		num_elems += group_sizes_[k]*group_sizes_[k];
 	}
 	this->WeightsMatrix_.reserve(num_elems);
-	this->WeightsMatrix_.resize(this->n_, this->n_);
+	this->WeightsMatrix_.resize(m_, m_);
 
-	// Initialize required elements
-	UInt starting_ind = 0;
+	// Initialize required elements with value 1
+	std::vector<UInt> loc_counter(n_groups_, 0);
+	
 	for(auto k=0; k<n_groups_; k++){
 		for(auto i=0; i<group_sizes_[k]; i++){
 			for(auto j=0; j<group_sizes_[k]; j++){
-				this->WeightsMatrix_.insert(starting_ind+i,starting_ind+j) = 1;
+				this->WeightsMatrix_.insert(ids_perm_[k][i], ids_perm_[k][j]) = 1;
 			}
 		}
-	starting_ind += group_sizes_[k];
 	}
 }
 
@@ -151,27 +151,29 @@ void RegressionDataMixedEffects<RegressionHandler>::initializeWeights()
 template<typename RegressionHandler>
 void RegressionDataMixedEffects<RegressionHandler>::updateWeights(std::vector<MatrixXr> P)
 {
-	UInt starting_ind = 0;
 	for(auto k=0; k<n_groups_; k++){
 		for(auto i=0; i<group_sizes_[k]; i++){
 			for(auto j=0; j<group_sizes_[k]; j++){
-				this->WeightsMatrix_.coeffRef(starting_ind+i,starting_ind+j) = P[k].coeff(i,j);
+				this->WeightsMatrix_.coeffRef(ids_perm_[k][i], ids_perm_[k][j]) = P[k].coeff(i,j);
 			}
 		}
-	starting_ind += group_sizes_[k];
 	}
 }
 
 
 
 template<typename RegressionHandler>
-void RegressionDataMixedEffects<RegressionHandler>::setGroupSizes(SEXP Rgroup_sizes)
+void RegressionDataMixedEffects<RegressionHandler>::setGroupSizes_and_Perm(SEXP Rgroup_ids)
 {
+	// Extract the size of each group
 	group_sizes_.resize(n_groups_, 0);
+	ids_perm_.resize(n_groups_);
 
-	for(auto i=0;i<n_groups_;++i)
+	for(auto i=0; i<m_; ++i)
 	{
-		group_sizes_[i] = INTEGER(Rgroup_sizes)[i];	
+		UInt i_loc = INTEGER(Rgroup_ids)[i];
+		group_sizes_[i_loc] += 1;	// update the counter of the correct group
+		ids_perm_[i_loc].push_back(i); // map the global index to the local one
 	}
 }
 
@@ -179,14 +181,15 @@ void RegressionDataMixedEffects<RegressionHandler>::setGroupSizes(SEXP Rgroup_si
 template<typename RegressionHandler>
 void RegressionDataMixedEffects<RegressionHandler>::setRandomEffectsCovariates(SEXP Rrandom_effects_covariates)
 {
+	m_ = INTEGER(Rf_getAttrib(Rrandom_effects_covariates, R_DimSymbol))[0];
 	q_ = INTEGER(Rf_getAttrib(Rrandom_effects_covariates, R_DimSymbol))[1];
 	UInt k=0;
 
-	random_effects_covariates_.resize(this->n_, q_);
+	random_effects_covariates_.resize(m_, q_);
 
 	const std::vector<UInt> observations_na = *this->getObservationsNA();
 
-	for(auto i=0; i<this->n_; ++i)
+	for(auto i=0; i<m_; ++i)
 	{
 		for(auto j=0; j<q_ ; ++j)
 		{
@@ -197,7 +200,7 @@ void RegressionDataMixedEffects<RegressionHandler>::setRandomEffectsCovariates(S
 			}
 			else
 			{
-				random_effects_covariates_(i,j)=REAL(Rrandom_effects_covariates)[i+ this->n_*j];
+				random_effects_covariates_(i,j)=REAL(Rrandom_effects_covariates)[i+ m_*j];
 			}
 		}
 	}
@@ -209,14 +212,14 @@ template<typename RegressionHandler>
 RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
 	SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch,
 	SEXP Rmax_num_iteration, SEXP Rthreshold, 
-	SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups):
+	SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups):
 	RegressionData(Rlocations, RbaryLocations, Robservations, Rorder, Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, Rsearch)
 {
 	n_groups_ = INTEGER(Rn_groups)[0];
 	max_num_iterations_ = INTEGER(Rmax_num_iteration)[0];
 	threshold_ =  REAL(Rthreshold)[0];
-	setGroupSizes(Rgroup_sizes);
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
+	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
 	this->isGAM = true;
 }
@@ -227,15 +230,15 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
 	SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch, 
 	SEXP Rmax_num_iteration, SEXP Rthreshold, 
-	SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups):
+	SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups):
 	RegressionDataElliptic(Rlocations, RbaryLocations, Robservations, Rorder, RK, Rbeta, Rc,
 		Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, Rsearch)
 {
 	n_groups_ = INTEGER(Rn_groups)[0];
 	max_num_iterations_ = INTEGER(Rmax_num_iteration)[0];
 	threshold_ =  REAL(Rthreshold)[0];
-	setGroupSizes(Rgroup_sizes);
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
+	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
 	this->isGAM = true;
 }
@@ -246,15 +249,15 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Ru, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
 	SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch, 
 	SEXP Rmax_num_iteration, SEXP Rthreshold, 
-	SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups):
+	SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups):
 	RegressionDataEllipticSpaceVarying(Rlocations, RbaryLocations, Robservations, Rorder, RK, Rbeta, Rc, Ru,
 		Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, Rsearch)
 {
 	n_groups_ = INTEGER(Rn_groups)[0];
 	max_num_iterations_ = INTEGER(Rmax_num_iteration)[0];
 	threshold_ =  REAL(Rthreshold)[0];
-	setGroupSizes(Rgroup_sizes);
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
+	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
 	this->isGAM = true;
 }
@@ -266,7 +269,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rflag_mass, SEXP Rflag_parabolic,SEXP Rflag_iterative, 
 	SEXP Rmax_num_iteration, SEXP Rthreshold, SEXP Ric, SEXP Rsearch, 
 	SEXP Rmax_num_iteration_pirls, SEXP Rthreshold_pirls, 
-	SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups):
+	SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups):
 	RegressionData(Rlocations, RbaryLocations, Rtime_locations, Robservations, Rorder, Rcovariates, RBCIndices, RBCValues, 	
 		RincidenceMatrix, RarealDataAvg, 
 		Rflag_mass, Rflag_parabolic, Rflag_iterative, Rmax_num_iteration, Rthreshold, Ric, Rsearch)
@@ -274,8 +277,8 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	n_groups_ = INTEGER(Rn_groups)[0];
 	max_num_iterations_ = INTEGER(Rmax_num_iteration_pirls)[0];
 	threshold_ = REAL(Rthreshold_pirls)[0];
-	setGroupSizes(Rgroup_sizes);
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
+	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
 	this->isGAM = true;
 }
@@ -287,7 +290,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
     	SEXP RarealDataAvg, SEXP Rflag_mass, SEXP Rflag_parabolic,SEXP Rflag_iterative, SEXP Rmax_num_iteration, 
     	SEXP Rthreshold, SEXP Ric, SEXP Rsearch, 
 		SEXP Rmax_num_iteration_pirls, SEXP Rthreshold_pirls, 
-		SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups):
+		SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups):
     		RegressionDataElliptic(Rlocations, RbaryLocations, Rtime_locations, Robservations, Rorder, RK, Rbeta, Rc, 
     				       Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, 
     				       Rflag_mass, Rflag_parabolic, Rflag_iterative, Rmax_num_iteration, Rthreshold, Ric, Rsearch)
@@ -295,8 +298,8 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	n_groups_ = INTEGER(Rn_groups)[0];
 	max_num_iterations_ = INTEGER(Rmax_num_iteration_pirls)[0];
 	threshold_ = REAL(Rthreshold_pirls)[0];
-	setGroupSizes(Rgroup_sizes);
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
+	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
 	this->isGAM = true;
 }
@@ -308,7 +311,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	SEXP RarealDataAvg, SEXP Rflag_mass, SEXP Rflag_parabolic,SEXP Rflag_iterative, SEXP Rmax_num_iteration, 
 	SEXP Rthreshold, SEXP Ric, SEXP Rsearch, 
 	SEXP Rmax_num_iteration_pirls, SEXP Rthreshold_pirls, 
-	SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups): 
+	SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups): 
 		RegressionDataEllipticSpaceVarying(Rlocations, RbaryLocations, Rtime_locations, Robservations, Rorder, RK, Rbeta, Rc, Ru, 
 						   Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, 
 						   Rflag_mass, Rflag_parabolic, Rflag_iterative, Rmax_num_iteration_pirls, Rthreshold_pirls, Ric,Rsearch)
@@ -316,8 +319,8 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	n_groups_ = INTEGER(Rn_groups)[0];
 	max_num_iterations_ = INTEGER(Rmax_num_iteration_pirls)[0];
 	threshold_ = REAL(Rthreshold_pirls)[0];
-	setGroupSizes(Rgroup_sizes);
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
+	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
 	this->isGAM = true;
 	}

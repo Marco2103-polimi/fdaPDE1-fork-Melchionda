@@ -333,13 +333,13 @@ extern "C"
 		SEXP Rcovariates,  SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg,
 		SEXP Rmax_num_iteration, SEXP Rtreshold, SEXP Rsearch,
 		SEXP Roptim, SEXP Rlambda, SEXP Rnrealizations, SEXP Rseed, SEXP RDOF_matrix, SEXP Rtune, SEXP Rsct,
-		SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups)
+		SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups)
 	{
 	    	// Set up the MixedEffectsata structure for the laplacian case
 		MixedEffectsDataLaplace regressionData(Rlocations, RbaryLocations, Robservations, Rorder, 
 							 Rcovariates, RBCIndices, RBCValues, RincidenceMatrix, RarealDataAvg, Rsearch, 
 							 Rmax_num_iteration, Rtreshold,
-							 Rrandom_effects_covariates, Rgroup_sizes, Rn_groups);
+							 Rrandom_effects_covariates, Rgroup_ids, Rn_groups);
 		OptimizationData optimizationData(Roptim, Rlambda, Rnrealizations, Rseed, RDOF_matrix, Rtune, Rsct);
 
 	 	UInt mydim = INTEGER(Rmydim)[0]; // Set the mesh dimension form R to C++

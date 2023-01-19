@@ -410,14 +410,16 @@ class  RegressionDataMixedEffects : public RegressionHandler
 		Real threshold_; //!< Limit in difference among J_k and J_k+1 for which we stop FPIRLS.
 		
 		// Mixed Effects specific quantities
-		MatrixXr random_effects_covariates_;		
+		MatrixXr random_effects_covariates_;	
+		UInt m_ = 0;	
 		UInt q_ = 0;
 		UInt n_groups_ = 0;
 		std::vector<UInt> group_sizes_;
+		std::vector<std::vector<UInt>> ids_perm_;
 		
 		// Constructor utilities
 		void setRandomEffectsCovariates(SEXP Rrandom_effects_covariates);
-		void setGroupSizes(SEXP Rgroup_sizes);
+		void setGroupSizes_and_Perm(SEXP Rgroup_ids);
 		void initializeWeights(void);
 
 	public:
@@ -452,42 +454,42 @@ class  RegressionDataMixedEffects : public RegressionHandler
 		explicit RegressionDataMixedEffects(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
 			SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch,
 			SEXP Rmax_num_iteration, SEXP Rthreshold, 
-			SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups);
+			SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups);
 
 		// PDE
 		explicit RegressionDataMixedEffects(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
 			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
 			SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch, 
 			SEXP Rmax_num_iteration, SEXP Rthreshold, 
-			SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups);
+			SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups);
 
 		// PDE SpaceVarying
 		explicit RegressionDataMixedEffects(SEXP Rlocations, SEXP RbaryLocations, SEXP Robservations, SEXP Rorder,
 			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Ru, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues,
 			SEXP RincidenceMatrix, SEXP RarealDataAvg, SEXP Rsearch, 
 			SEXP Rmax_num_iteration, SEXP Rthreshold, 
-			SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups);
+			SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups);
 
 		//Laplace time
 		explicit RegressionDataMixedEffects(SEXP Rlocations, SEXP RbaryLocations, SEXP Rtime_locations, SEXP Robservations, SEXP Rorder,
 			SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg,
 			SEXP Rflag_mass, SEXP Rflag_parabolic, SEXP Rflag_iterative, SEXP Rmax_num_iteration, SEXP Rthreshold, SEXP Ric, SEXP Rsearch, 
 			SEXP Rmax_num_iteration_pirls, SEXP Rthreshold_pirls, 
-			SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups);
+			SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups);
 		
 		// PDE time
 		explicit RegressionDataMixedEffects(SEXP Rlocations, SEXP RbaryLocations, SEXP Rtime_locations, SEXP Robservations, SEXP Rorder,
 			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg,
 			SEXP Rflag_mass, SEXP Rflag_parabolic, SEXP Rflag_iterative, SEXP Rmax_num_iteration, SEXP Rthreshold, SEXP Ric, SEXP Rsearch, 
 			SEXP Rmax_num_iteration_pirls, SEXP Rthreshold_pirls, 
-			SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups);
+			SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups);
 		
 		// PDE SpaceVarying time
 		explicit RegressionDataMixedEffects(SEXP Rlocations, SEXP RbaryLocations, SEXP Rtime_locations, SEXP Robservations, SEXP Rorder,
 			SEXP RK, SEXP Rbeta, SEXP Rc, SEXP Ru, SEXP Rcovariates, SEXP RBCIndices, SEXP RBCValues, SEXP RincidenceMatrix, SEXP RarealDataAvg,
 			SEXP Rflag_mass, SEXP Rflag_parabolic, SEXP Rflag_iterative, SEXP Rmax_num_iteration, SEXP Rthreshold, SEXP Ric, SEXP Rsearch, 
 			SEXP Rmax_num_iteration_pirls, SEXP Rthreshold_pirls, 
-			SEXP Rrandom_effects_covariates, SEXP Rgroup_sizes, SEXP Rn_groups);
+			SEXP Rrandom_effects_covariates, SEXP Rgroup_ids, SEXP Rn_groups);
 
 		//! A method returning the maximum iteration for the iterative method
 		UInt get_maxiter() const {return max_num_iterations_;}
@@ -499,6 +501,8 @@ class  RegressionDataMixedEffects : public RegressionHandler
 		const UInt get_q(void) const {return q_;}
 		//! A method returning a const pointer to the vector storing the size of each group
 		const std::vector<UInt> * getGroupSizes(void) const {return &group_sizes_;}
+		//! A method returning a const pointer to the vector storing the ids permutation for FPIRLS
+		const std::vector<std::vector<UInt>> * getIdsPerm(void) const {return &ids_perm_;}
 		//! A method returning the total number of groups in the data
 		const UInt getGroupNumber(void) const {return n_groups_;}
 
