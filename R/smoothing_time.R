@@ -37,6 +37,13 @@ NULL
 #' @param incidence_matrix A #regions-by-#triangles/tetrahedrons matrix where the element (i,j) equals 1 if the j-th triangle/tetrahedron is in the i-th region and 0 otherwise.
 #' This is only for areal data. In case of pointwise data, this parameter is set to \code{NULL}.
 #' @param areal.data.avg Boolean. It involves the computation of Areal Data. If \code{TRUE} the areal data are averaged, otherwise not.
+#' @param weights A vector of length #observations with the desired weights to assign to each of the observed data values in a Weighted Regression problem. 
+#' It it is left to NULL, the unweighted version of the Model is fit.
+#' @param rand.effects.covariates A #observations-by-#rand.effects.covariates matrix where each row represents the random effects covariates associated with
+#' the corresponding observed data value in \code{observations} and each column is a different covariate. 
+#' It is used in combination with \code{group_ids} to solve a Mixed Effects model.
+#' @param group_ids A vector of length #observations with the desired labels used to identify each of the observed data values with a specific group. 
+#' It is used in combination with \code{rand.effects.covariates} to solve a Mixed Effects model.
 #' @param FLAG_MASS Boolean. This parameter is considerd only for separable problems i.e. when \code{FLAG_PARABOLIC==FALSE}. If \code{TRUE} the mass matrix in space and in time are used, if \code{FALSE} they are substituted with proper identity matrices.
 #' @param FLAG_PARABOLIC Boolean. If \code{TRUE} the parabolic problem problem is selected, if \code{FALSE} the separable one.
 #' @param FLAG_ITERATIVE Boolean. If \code{TRUE} the iterative method is selected, if \code{FALSE} the monolithic one.
@@ -310,6 +317,17 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     weights = matrix(weights, ncol=1)
   }
   
+  ## Mixed effects conversions and builds
+  if(!is.null(rand.effects.covariates)){
+    rand.effects.covariates = as.matrix(rand.effects.covariates)
+    
+    # Create utility quantities for Mixed Effects model
+    group_ids = as.factor(group_ids)
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.ids = as.numeric(group_ids)
+  }
+  
   
   space_varying = checkSmoothingParameters_time(locations = locations, time_locations = time_locations, observations = observations, FEMbasis = FEMbasis, time_mesh = time_mesh,
                   covariates = covariates, PDE_parameters = PDE_parameters, BC = BC, 
@@ -390,6 +408,12 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
   ################## End checking parameters, sizes and conversion #############################
   if (family == "gaussian")
   { 
+    if(is.null(rand.effects.covariates)){
+      
+      #----------------------------------------------------#
+      ############# Standard Smooth method #################
+      #----------------------------------------------------#
+      
   if(is(FEMbasis$mesh, "mesh.2D") & is.null(PDE_parameters))
   {
     bigsol = NULL
@@ -606,6 +630,297 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
                 optimization  = optimization, beta = beta, time = time, ICestimated=ICestimated, bary.locations = bary.locations)
 
   return(reslist)
+  
+    } else
+    {
+      #-------------------------------------------------------------#
+      ############# Mixed Effects: FPIRLS algorithm #################
+      #-------------------------------------------------------------#
+      #Iterative solver not implemented for Mixed Effects
+      if(FLAG_ITERATIVE){
+        warning("Iterative solver not implemented for Mixed Effects models, switching to block solver")
+        FLAG_ITERATIVE = FALSE
+        threshold = 10^(-4)
+        max.steps = 50
+      }
+      
+      if (is(FEMbasis$mesh, "mesh.2D") & is.null(PDE_parameters)) {
+        bigsol = NULL
+        bigsol = CPP_smooth.MixedEffects.FEM.time(locations = locations, time_locations = time_locations,
+                                         observations = observations, FEMbasis = FEMbasis,
+                                         time_mesh = time_mesh, covariates = covariates, ndim = ndim,
+                                         mydim = mydim, BC = BC, incidence_matrix = incidence_matrix,
+                                         areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                         FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, 
+                                         max.steps = max.steps, IC = IC, 
+                                         max.steps.FPIRLS = max.steps.FPIRLS,
+                                         threshold.FPIRLS = threshold.FPIRLS,
+                                         rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                         search = search, bary.locations = bary.locations, optim = optim,
+                                         lambdaS = lambdaS, lambdaT = lambdaT,
+                                         DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                         DOF.stochastic.seed = DOF.stochastic.seed,
+                                         DOF.matrix = DOF.matrix,
+                                         GCV.inflation.factor = GCV.inflation.factor,
+                                         lambda.optimization.tolerance = lambda.optimization.tolerance)
+      }else if (is(FEMbasis$mesh, "mesh.2D") & !is.null(PDE_parameters) & space_varying == FALSE) {
+        bigsol = NULL
+        bigsol = CPP_smooth.MixedEffects.FEM.PDE.time(locations = locations, time_locations = time_locations,
+                                             observations = observations, FEMbasis = FEMbasis,
+                                             time_mesh = time_mesh, covariates = covariates,
+                                             PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim,
+                                             BC = BC, incidence_matrix = incidence_matrix,
+                                             areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                             FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE = FLAG_ITERATIVE,
+                                             threshold = threshold, max.steps = max.steps, IC = IC,
+                                             max.steps.FPIRLS = max.steps.FPIRLS,
+                                             threshold.FPIRLS = threshold.FPIRLS,
+                                             rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                             search = search, bary.locations = bary.locations, optim = optim,
+                                             lambdaS = lambdaS, lambdaT = lambdaT,
+                                             DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                             DOF.stochastic.seed = DOF.stochastic.seed,
+                                             DOF.matrix = DOF.matrix,
+                                             GCV.inflation.factor = GCV.inflation.factor,
+                                             lambda.optimization.tolerance = lambda.optimization.tolerance)
+      }else if (is(FEMbasis$mesh, "mesh.2D") & !is.null(PDE_parameters) & space_varying == TRUE) {
+        bigsol = NULL
+        bigsol = CPP_smooth.MixedEffects.FEM.PDE.sv.time(locations = locations, time_locations = time_locations,
+                                                observations = observations, FEMbasis = FEMbasis,
+                                                time_mesh = time_mesh, covariates = covariates,
+                                                PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim,
+                                                BC = BC, incidence_matrix = incidence_matrix,
+                                                areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                                FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE = FLAG_ITERATIVE,
+                                                threshold = threshold, max.steps = max.steps, IC = IC,
+                                                max.steps.FPIRLS = max.steps.FPIRLS,
+                                                threshold.FPIRLS = threshold.FPIRLS,
+                                                rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                                search = search, bary.locations = bary.locations, optim = optim,
+                                                lambdaS = lambdaS, lambdaT = lambdaT,
+                                                DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                                DOF.stochastic.seed = DOF.stochastic.seed,
+                                                DOF.matrix = DOF.matrix,
+                                                GCV.inflation.factor = GCV.inflation.factor,
+                                                lambda.optimization.tolerance = lambda.optimization.tolerance)
+      } else if( is(FEMbasis$mesh, "mesh.2.5D") &  is.null(PDE_parameters)){
+        bigsol = NULL
+        bigsol = CPP_smooth.manifold.MixedEffects.FEM.time(locations = locations, time_locations = time_locations,
+                                                  observations = observations, FEMbasis = FEMbasis,
+                                                  time_mesh = time_mesh, covariates = covariates, ndim = ndim,
+                                                  mydim = mydim, BC = BC, incidence_matrix = incidence_matrix,
+                                                  areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                                  FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, 
+                                                  max.steps = max.steps, IC = IC,
+                                                  max.steps.FPIRLS = max.steps.FPIRLS,
+                                                  threshold.FPIRLS = threshold.FPIRLS,
+                                                  rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                                  search = search, bary.locations = bary.locations, optim = optim,
+                                                  lambdaS = lambdaS, lambdaT = lambdaT,
+                                                  DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                                  DOF.stochastic.seed = DOF.stochastic.seed,
+                                                  DOF.matrix = DOF.matrix,
+                                                  GCV.inflation.factor = GCV.inflation.factor,
+                                                  lambda.optimization.tolerance = lambda.optimization.tolerance)
+      }else if(is(FEMbasis$mesh, "mesh.3D") &  is.null(PDE_parameters)){
+        bigsol = NULL
+        bigsol = CPP_smooth.volume.MixedEffects.FEM.time(locations = locations, time_locations = time_locations,
+                                                observations = observations, FEMbasis = FEMbasis,
+                                                time_mesh = time_mesh, covariates = covariates, ndim = ndim,
+                                                mydim = mydim, BC = BC, incidence_matrix = incidence_matrix,
+                                                areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                                FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, 
+                                                max.steps = max.steps, IC = IC,
+                                                max.steps.FPIRLS = max.steps.FPIRLS,
+                                                threshold.FPIRLS = threshold.FPIRLS,
+                                                rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                                search = search, bary.locations = bary.locations, optim = optim,
+                                                lambdaS = lambdaS, lambdaT = lambdaT,
+                                                DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                                DOF.stochastic.seed = DOF.stochastic.seed,
+                                                DOF.matrix = DOF.matrix,
+                                                GCV.inflation.factor = GCV.inflation.factor,
+                                                lambda.optimization.tolerance = lambda.optimization.tolerance)  
+      }else if(is(FEMbasis$mesh, "mesh.3D") &  !is.null(PDE_parameters) & space_varying == FALSE){
+        bigsol = NULL
+        bigsol = CPP_smooth.volume.MixedEffects.FEM.PDE.time(locations = locations, time_locations = time_locations,
+                                                    observations = observations, FEMbasis = FEMbasis,
+                                                    time_mesh = time_mesh, covariates = covariates, 
+                                                    PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, 
+                                                    BC = BC, incidence_matrix = incidence_matrix,
+                                                    areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                                    FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, 
+                                                    max.steps = max.steps, IC = IC,
+                                                    max.steps.FPIRLS = max.steps.FPIRLS,
+                                                    threshold.FPIRLS = threshold.FPIRLS,
+                                                    rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                                    search = search, bary.locations = bary.locations, optim = optim,
+                                                    lambdaS = lambdaS, lambdaT = lambdaT,
+                                                    DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                                    DOF.stochastic.seed = DOF.stochastic.seed,
+                                                    DOF.matrix = DOF.matrix,
+                                                    GCV.inflation.factor = GCV.inflation.factor,
+                                                    lambda.optimization.tolerance = lambda.optimization.tolerance)  
+      }else if(is(FEMbasis$mesh, "mesh.3D") & !is.null(PDE_parameters) & space_varying == TRUE){
+        bigsol = NULL
+        bigsol = CPP_smooth.volume.MixedEffects.FEM.PDE.sv.time(locations = locations, time_locations = time_locations,
+                                                       observations = observations, FEMbasis = FEMbasis,
+                                                       time_mesh = time_mesh, covariates = covariates, 
+                                                       PDE_parameters = PDE_parameters, ndim = ndim, mydim = mydim, 
+                                                       BC = BC, incidence_matrix = incidence_matrix,
+                                                       areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                                       FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, 
+                                                       max.steps = max.steps, IC = IC,
+                                                       max.steps.FPIRLS = max.steps.FPIRLS,
+                                                       threshold.FPIRLS = threshold.FPIRLS,
+                                                       rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                                       search = search, bary.locations = bary.locations, optim = optim,
+                                                       lambdaS = lambdaS, lambdaT = lambdaT,
+                                                       DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                                       DOF.stochastic.seed = DOF.stochastic.seed,
+                                                       DOF.matrix = DOF.matrix,
+                                                       GCV.inflation.factor = GCV.inflation.factor,
+                                                       lambda.optimization.tolerance = lambda.optimization.tolerance)  
+      }else if(is(FEMbasis$mesh, "mesh.1.5D") &  is.null(PDE_parameters)){
+        bigsol = NULL
+        bigsol = CPP_smooth.graph.MixedEffects.FEM.time(locations = locations, time_locations = time_locations,
+                                               observations = observations, FEMbasis = FEMbasis,
+                                               time_mesh = time_mesh, covariates = covariates, ndim = ndim,
+                                               mydim = mydim, BC = BC, incidence_matrix = incidence_matrix,
+                                               areal.data.avg = areal.data.avg, FLAG_MASS = FLAG_MASS,
+                                               FLAG_PARABOLIC = FLAG_PARABOLIC, FLAG_ITERATIVE=FLAG_ITERATIVE, threshold = threshold, 
+                                               max.steps = max.steps, IC = IC,
+                                               max.steps.FPIRLS = max.steps.FPIRLS,
+                                               threshold.FPIRLS = threshold.FPIRLS,
+                                               rand.effects.covariates = rand.effects.covariates, group.ids = group.ids, n.groups = n.groups, 
+                                               search = search, bary.locations = bary.locations, optim = optim,
+                                               lambdaS = lambdaS, lambdaT = lambdaT,
+                                               DOF.stochastic.realizations = DOF.stochastic.realizations,
+                                               DOF.stochastic.seed = DOF.stochastic.seed,
+                                               DOF.matrix = DOF.matrix,
+                                               GCV.inflation.factor = GCV.inflation.factor,
+                                               lambda.optimization.tolerance = lambda.optimization.tolerance)
+      }else{
+        stop("Not implemented for !is.null(PDE_parameters). Try Laplacian regularization.")
+      }
+      
+      ICindx = 16
+      N = nrow(FEMbasis$mesh$nodes)
+      M = ifelse(FLAG_PARABOLIC, length(time_mesh) - 1, length(time_mesh) + 2)
+      if (is.null(IC) && FLAG_PARABOLIC)
+        IC = bigsol[[ICindx]]$coeff[, bigsol[[ICindx + 1]]]
+      if (FLAG_PARABOLIC) {
+        f = array(dim = c(length(IC) + M * N, length(lambdaS), length(lambdaT)))
+        for (i in 1:length(lambdaS))
+          for (j in 1:length(lambdaT))
+            f[, i, j] = c(IC, bigsol[[1]][1:(N * M), i + (j - 1) * length(lambdaS)])
+      }else
+        f = array(data = bigsol[[1]][1:(N * M), ],
+                  dim = c(N * M, length(lambdaS), length(lambdaT)))
+      if (FLAG_PARABOLIC) {
+        g = array(dim = c(length(IC) + M * N, length(lambdaS), length(lambdaT)))
+        for (i in 1:length(lambdaS))
+          for (j in 1:length(lambdaT))
+            g[, i, j] = c(rep(0, length(IC)), bigsol[[1]][(N * M + 1):(2 * N * M),
+                                                          i + (j - 1) * length(lambdaS)])
+      }else
+        g = array(data = bigsol[[1]][(N * M + 1):(2 * N * M), ],
+                  dim = c(N * M, length(lambdaS), length(lambdaT)))
+      
+      dof = bigsol[[2]]
+      GCV_ = bigsol[[3]]
+      bestlambda = bigsol[[4]] + 1
+      if (!is.null(covariates))
+        beta = array(data = bigsol[[5]], dim = c(ncol(covariates), length(lambdaS), length(lambdaT)))
+      else
+        beta = NULL
+      
+      if (all(is.na(bigsol[[ICindx]])))
+        ICestimated = NULL
+      else
+        ICestimated = list(IC.FEM = bigsol[[ICindx]], bestlambdaindex = bigsol[[ICindx + 1]],
+                           bestlambda = bigsol[[ICindx + 2]], beta = bigsol[[ICindx + 3]])
+      
+      # Save information of Tree Mesh
+      tree_mesh = list(treelev = bigsol[[6]][1], header_orig = bigsol[[7]],
+                       header_scale = bigsol[[8]], node_id = bigsol[[9]][, 1],
+                       node_left_child = bigsol[[9]][, 2],
+                       node_right_child = bigsol[[9]][, 3], node_box = bigsol[[10]])
+      
+      # Reconstruct FEMbasis with tree mesh
+      mesh.class = class(FEMbasis$mesh)
+      if (is.null(FEMbasis$mesh$treelev)) {  # if doesn't exist the tree
+        # information
+        FEMbasis$mesh = append(FEMbasis$mesh, tree_mesh)
+      }  # if already exist the tree information, don't append
+      
+      class(FEMbasis$mesh) = mesh.class
+      
+      # Save information of Barycenter
+      if (is.null(bary.locations)) {
+        bary.locations = list(locations = locations, element_ids = bigsol[[11]],
+                              barycenters = bigsol[[12]])
+      }
+      class(bary.locations) = "bary.locations"
+      
+      # Make FEM.time objects
+      fit.FEM.time = FEM.time(f, time_mesh, FEMbasis, FLAG_PARABOLIC)
+      PDEmisfit.FEM.time = FEM.time(g, time_mesh, FEMbasis, FLAG_PARABOLIC)
+      
+      # Prepare return list
+      reslist = NULL
+      
+      nm <- length(observations)
+      fn.eval = array(dim = c(nm, length(lambdaS), length(lambdaT)))
+      if(FLAG_PARABOLIC)
+      {
+        if(!is.null(bigsol[[ICindx]]))
+          ICfn.eval = bigsol[[ICindx+4]][, bigsol[[ICindx + 1]]]
+        else
+          ICfn.eval = NULL
+        nm <- nm - length(ICfn.eval)
+        for (i in 1:length(lambdaS))
+          for (j in 1:length(lambdaT))
+            fn.eval[, i, j] = c(ICfn.eval, bigsol[[13]][1:nm, i + (j - 1) * length(lambdaS)])
+        
+      }else{
+        for (i in 1:length(lambdaS))
+          for (j in 1:length(lambdaT))
+            fn.eval[, i, j] = bigsol[[13]][1:nm, i + (j - 1) * length(lambdaS)]
+      }
+      
+      # Mixed Effects outputs
+      J_minima = bigsol[[14]]
+      Sigma.b=bigsol[[15]]
+      b_i.hat=bigsol[[16]]
+      n_iterations = bigsol[[17]]
+      MixedEffects_output = list(fn.eval = fn.eval, J_minima = J_minima, Sigma.b = Sigma.b, b_i.hat = b_i.hat, n_iterations = n_iterations)
+      
+      
+      if(!is.numeric(variance.est[1])){
+        variance.est <- NULL 
+      } else if (variance.est[1] < 0) variance.est = NULL
+      
+      if (!is.null(lambda.selection.lossfunction)) {
+        stderr = sqrt(GCV_ * (sum(!is.na(observations)) - dof) / sum(!is.na(observations)))
+        reslist = list(fit.FEM.time = fit.FEM.time,
+                       PDEmisfit.FEM.time = PDEmisfit.FEM.time, beta = beta,
+                       edf = dof, GCV = GCV_, stderr = stderr,
+                       bestlambda = bestlambda, ICestimated = ICestimated,
+                       bary.locations = bary.locations, fn.eval = fn.eval,
+                       J_minima = J_minima, variance.est = variance.est,
+                       MixedEffects_output = MixedEffects_output)
+      }else{
+        reslist = list(fit.FEM.time = fit.FEM.time,
+                       PDEmisfit.FEM.time = PDEmisfit.FEM.time, beta = beta,
+                       ICestimated = ICestimated, bary.locations = bary.locations,
+                       fn.eval = fn.eval, J_minima = J_minima,
+                       variance.est = variance.est,
+                       MixedEffects_output = MixedEffects_output)
+      }
+      return(reslist)
+      
+    }
   }
  else
  {
