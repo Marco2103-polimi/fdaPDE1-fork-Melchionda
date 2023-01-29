@@ -13,6 +13,8 @@ CPP_smooth.MixedEffects.FEM.time <- function(locations, time_locations, observat
   FEMbasis$mesh$edges <- FEMbasis$mesh$edges - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] <-
     FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
+  
+  group.ids = group.ids - 1
 
   if (is.null(covariates)) {
     covariates <- matrix(nrow = 0, ncol = 1)
@@ -248,6 +250,8 @@ CPP_smooth.MixedEffects.FEM.PDE.time <- function(locations, time_locations, obse
   FEMbasis$mesh$edges <- FEMbasis$mesh$edges - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] <-
     FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
+  
+  group.ids = group.ids - 1
 
   if (is.null(covariates)) {
     covariates <- matrix(nrow = 0, ncol = 1)
@@ -492,6 +496,8 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locations, o
   FEMbasis$mesh$edges <- FEMbasis$mesh$edges - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] <-
     FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
+  
+  group.ids = group.ids - 1
 
   if (is.null(covariates)) {
     covariates <- matrix(nrow = 0, ncol = 1)
@@ -750,6 +756,8 @@ CPP_smooth.manifold.MixedEffects.FEM.time <- function(locations, time_locations,
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] <-
     FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
   
+  group.ids = group.ids - 1
+  
   if (is.null(covariates)) {
     covariates <- matrix(nrow = 0, ncol = 1)
   }
@@ -981,6 +989,8 @@ CPP_smooth.volume.MixedEffects.FEM.time <- function(locations, time_locations, o
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = 
     FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
   
+  group.ids = group.ids - 1
+  
   if (is.null(covariates)) {
     covariates <- matrix(nrow = 0, ncol = 1)
   }
@@ -1211,7 +1221,9 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.time <- function(locations, time_location
   FEMbasis$mesh$tetrahedrons = FEMbasis$mesh$tetrahedrons - 1
   FEMbasis$mesh$faces = FEMbasis$mesh$faces - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
-
+  
+  group.ids = group.ids - 1
+  
   if (is.null(covariates)) {
     covariates <- matrix(nrow = 0, ncol = 1)
   }
@@ -1454,6 +1466,8 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locat
   FEMbasis$mesh$tetrahedrons = FEMbasis$mesh$tetrahedrons - 1
   FEMbasis$mesh$faces = FEMbasis$mesh$faces - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
+  
+  group.ids = group.ids - 1
 
   if (is.null(covariates)) {
     covariates <- matrix(nrow = 0, ncol = 1)
@@ -1713,6 +1727,8 @@ CPP_smooth.graph.MixedEffects.FEM.time <- function(locations, time_locations, ob
     if( dim(FEMbasis$mesh$neighbors[[i]] )[1] > 0)
       FEMbasis$mesh$neighbors[[i]] = FEMbasis$mesh$neighbors[[i]] - 1
   }
+  
+  group.ids = group.ids - 1
   
   
   if (is.null(covariates)) {

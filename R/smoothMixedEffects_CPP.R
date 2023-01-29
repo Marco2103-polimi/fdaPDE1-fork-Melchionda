@@ -102,6 +102,8 @@ CPP_smooth.MixedEffects.FEM.PDE.basis<-function(locations, observations, FEMbasi
   FEMbasis$mesh$edges = FEMbasis$mesh$edges - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
+  
   if(is.null(covariates))
   {
     covariates<-matrix(nrow = 0, ncol = 1)
@@ -202,6 +204,7 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.basis<-function(locations, observations, FEMb
   FEMbasis$mesh$edges = FEMbasis$mesh$edges - 1
   FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] = FEMbasis$mesh$neighbors[FEMbasis$mesh$neighbors != -1] - 1
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
   
   if(is.null(covariates))
   {
@@ -311,6 +314,8 @@ CPP_smooth.manifold.MixedEffects.FEM.basis<-function(locations, observations, FE
   
   
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
+  
   if(is.null(covariates))
   {
     covariates<-matrix(nrow = 0, ncol = 1)
@@ -410,6 +415,8 @@ CPP_smooth.volume.MixedEffects.FEM.basis<-function(locations, observations, FEMb
   
   
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
+  
   if(is.null(covariates))
   {
     covariates<-matrix(nrow = 0, ncol = 1)
@@ -508,6 +515,8 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.basis<-function(locations, observations, 
   
   
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
+  
   if(is.null(covariates))
   {
     covariates<-matrix(nrow = 0, ncol = 1)
@@ -609,6 +618,8 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.basis<-function(locations, observation
   
   
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
+  
   if(is.null(covariates))
   {
     covariates<-matrix(nrow = 0, ncol = 1)
@@ -719,6 +730,7 @@ CPP_smooth.graph.MixedEffects.FEM.basis<-function(locations, observations, FEMba
   } 
   
   max.steps.FPIRLS = max.steps.FPIRLS - 1
+  group.ids = group.ids - 1
   
   if(is.null(covariates))
   {
