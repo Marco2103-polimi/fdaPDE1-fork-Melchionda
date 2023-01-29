@@ -49,6 +49,9 @@ extern SEXP gam_PDE_space_varying_time(SEXP, SEXP, SEXP, SEXP, SEXP,SEXP, SEXP, 
 extern SEXP MixedEffects_Laplace(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP MixedEffects_PDE(SEXP, SEXP, SEXP, SEXP, SEXP,SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP MixedEffects_PDE_space_varying( SEXP, SEXP, SEXP, SEXP, SEXP,SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP MixedEffects_Laplace_time(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP MixedEffects_PDE_time(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP MixedEffects_PDE_space_varying_time(SEXP, SEXP, SEXP, SEXP, SEXP,SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 
 static const R_CallMethodDef CallEntries[] = {
     {"Density_Estimation",                (DL_FUNC) &Density_Estimation,                19},
@@ -92,6 +95,9 @@ static const R_CallMethodDef CallEntries[] = {
 	{"MixedEffects_Laplace",              (DL_FUNC) &MixedEffects_Laplace,              25},
     {"MixedEffects_PDE",                           (DL_FUNC) &MixedEffects_PDE,                           28},
     {"MixedEffects_PDE_space_varying",             (DL_FUNC) &MixedEffects_PDE_space_varying,             29},
+    {"MixedEffects_Laplace_time",                  (DL_FUNC) &MixedEffects_Laplace_time,                  34},
+    {"MixedEffects_PDE_time",                  	  (DL_FUNC) &MixedEffects_PDE_time,                  	37},
+    {"MixedEffects_PDE_space_varying_time",        (DL_FUNC) &MixedEffects_PDE_space_varying_time,   		38},
     {NULL, NULL, 0}
 };
 
