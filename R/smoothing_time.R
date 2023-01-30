@@ -159,7 +159,7 @@ NULL
 smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations, FEMbasis, time_mesh=NULL,
                           covariates = NULL, PDE_parameters = NULL,  BC = NULL,
                           incidence_matrix = NULL, areal.data.avg = TRUE,
-                          weights = NULL,
+                          weights = NULL, rand.effects.covariates = NULL, group_ids = NULL,
                           FLAG_MASS = FALSE, FLAG_PARABOLIC = FALSE,FLAG_ITERATIVE = FALSE, threshold = 10^(-4), max.steps = 50, IC = NULL,
                           search = "tree", bary.locations = NULL,
                           family = "gaussian", mu0 = NULL, scale.param = NULL,
