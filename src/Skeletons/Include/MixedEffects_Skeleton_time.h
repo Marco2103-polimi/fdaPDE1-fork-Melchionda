@@ -24,9 +24,9 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
 
     // Factory:
     FPIRLS_MixedEffects<InputHandler, ORDER, mydim, ndim> fpirls(mesh, mesh_time, MixedEffectsData, optimizationData);
-            
-    fpirls.apply();
-    
+
+	fpirls.apply();
+
     const MatrixXv &solution = fpirls.getSolution();
     const MatrixXr &dof = fpirls.getDOF();
     const std::vector<std::vector<Real>> &J_value = fpirls.get_J();
@@ -58,7 +58,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     
     //! Copy result in R memory
     SEXP result = NILSXP;
-    result = PROTECT(Rf_allocVector(VECSXP, 5 + 3 + 5 + 2));
+    result = PROTECT(Rf_allocVector(VECSXP, 5 + 3 + 5 + 2 + 2));
     SET_VECTOR_ELT(result, 0,
                    Rf_allocMatrix(REALSXP, solution(0, 0).size(),
                                   solution.rows() * solution.cols()));
@@ -68,6 +68,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     SET_VECTOR_ELT(result, 4, Rf_allocMatrix(REALSXP, beta(0).size(), beta.size()));
 
     //! Copy solution
+	//std::cout << "rans0" << std::endl;
     Real *rans = REAL(VECTOR_ELT(result, 0));
     for(UInt j = 0; j < solution.size(); j++)
     {
@@ -76,6 +77,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     }
     
     //! Copy dof matrix
+	//std::cout << "rans1" << std::endl;
     Real *rans1 = REAL(VECTOR_ELT(result, 1));
     for(UInt i = 0; i < dof.size(); i++)
     {
@@ -83,6 +85,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     }
     
     //! Copy GCV matrix
+	//std::cout << "rans2" << std::endl;
     Real *rans2 = REAL(VECTOR_ELT(result, 2));
     for (UInt i = 0; i < lambdaS_len; i++) {
         for (UInt j = 0; j < lambdaT_len; j++) {
@@ -91,11 +94,13 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     }
     
     //! Copy best lambdas
+	//std::cout << "rans3" << std::endl;
     UInt *rans3 = INTEGER(VECTOR_ELT(result, 3));
     rans3[0] = bestLambdaS;
     rans3[1] = bestLambdaT;
     
     //! Copy betas
+	//std::cout << "rans4" << std::endl;
     Real *rans4 = REAL(VECTOR_ELT(result, 4));
     for (UInt i = 0; i < beta.rows(); i++) {
         for (UInt j = 0; j < beta.cols(); j++) {
@@ -108,11 +113,13 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     
     if (MixedEffectsData.getSearch() == 2) {
         // SEND TREE INFORMATION TO R
+		//std::cout << "rans5" << std::endl;
         SET_VECTOR_ELT(result, 5,
                        Rf_allocVector(INTSXP, 1));  // tree_header information
         int *rans5 = INTEGER(VECTOR_ELT(result, 5));
         rans5[0] = mesh.getTree().gettreeheader().gettreelev();
 
+		//std::cout << "rans6" << std::endl;
         SET_VECTOR_ELT(
             result, 6,
             Rf_allocVector(REALSXP, ndim * 2));  // tree_header domain origin
@@ -120,6 +127,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
         for (UInt i = 0; i < ndim * 2; i++)
             rans6[i] = mesh.getTree().gettreeheader().domainorig(i);
 
+		//std::cout << "rans7" << std::endl;
         SET_VECTOR_ELT(
             result, 7,
             Rf_allocVector(REALSXP, ndim * 2));  // tree_header domain scale
@@ -127,6 +135,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
         for (UInt i = 0; i < ndim * 2; i++)
             rans7[i] = mesh.getTree().gettreeheader().domainscal(i);
 
+		//std::cout << "rans8" << std::endl;
         UInt num_tree_nodes =
             mesh.num_elements() +
             1;  // Be careful! This is not equal to number of elements
@@ -145,6 +154,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
             rans8[i + num_tree_nodes * 2] =
                 mesh.getTree().gettreenode(i).getchild(1);
 
+		//std::cout << "rans9" << std::endl;
         SET_VECTOR_ELT(result, 9,
                        Rf_allocMatrix(REALSXP, num_tree_nodes,
                                       ndim * 2));  // treenode box coordinate
@@ -157,10 +167,12 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     }
 
     // SEND BARYCENTER INFORMATION TO R
+	//std::cout << "rans10" << std::endl;
     SET_VECTOR_ELT(result, 10, Rf_allocVector(INTSXP, elementIds.rows()));  // element id of the locations point (vector)
     int *rans10 = INTEGER(VECTOR_ELT(result, 10));
     for (UInt i = 0; i < elementIds.rows(); i++) rans10[i] = elementIds(i);
 
+	//std::cout << "rans11" << std::endl;
     SET_VECTOR_ELT(result, 11, Rf_allocMatrix(REALSXP, barycenters.rows(), barycenters.cols()));  // barycenter information (matrix)
     Real *rans11 = REAL(VECTOR_ELT(result, 11));
     for (UInt j = 0; j < barycenters.cols(); j++) {
@@ -171,9 +183,11 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     // GAM PARAMETER ESTIMATIONS
     SET_VECTOR_ELT(result, 12, Rf_allocMatrix(REALSXP, fn_hat(0, 0).size(), fn_hat.rows()*fn_hat.cols()));
     SET_VECTOR_ELT(result, 13, Rf_allocMatrix(REALSXP, lambdaS_len, lambdaT_len));
-    SET_VECTOR_ELT(result, 14, Rf_allocMatrix(REALSXP, lambdaS_len, lambdaT_len));
+	SET_VECTOR_ELT(result, 14, Rf_allocMatrix(REALSXP, Sigma_b[0][0].size(), lambdaS_len*lambdaT_len));
+	SET_VECTOR_ELT(result, 15, Rf_allocMatrix(REALSXP, b_hat[0][0][0].size()*MixedEffectsData.getGroupNumber(), lambdaS_len*lambdaT_len));
 
     // return fn hat
+	//std::cout << "rans12" << std::endl;
     Real *rans12 = REAL(VECTOR_ELT(result, 12));
     for (UInt i = 0; i < fn_hat.rows(); i++) {
         for (UInt j = 0; j < fn_hat.cols(); j++) {
@@ -189,6 +203,7 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
     }
 
     // return J_value
+	//std::cout << "rans13" << std::endl;
     Real *rans13 = REAL(VECTOR_ELT(result, 13));
     for (UInt i = 0; i < lambdaS_len; i++) {
         for (UInt j = 0; j < lambdaT_len; j++) {
@@ -213,14 +228,15 @@ SEXP MixedEffects_skeleton_time(InputHandler &MixedEffectsData,
 	for(UInt i = 0; i < lambdaS_len; i++){
 		for(UInt j = 0; j < lambdaT_len; j++){
 			for(UInt k = 0; k < b_hat[0][0][0].size(); k++){
-				for(UInt h = 0; h < MixedEffectsData.getGroupNumber(); h++)
-				rans15[k + b_hat[0][0][0].size()*h + b_hat[0][0][0].size()*MixedEffectsData.getGroupNumber()*i + b_hat[0][0][0].size()*MixedEffectsData.getGroupNumber()*lambdaS_len*j] = b_hat[i][j][h].coeff(k);
+				for(UInt h = 0; h < MixedEffectsData.getGroupNumber(); h++){
+					rans15[k + b_hat[0][0][0].size()*h + b_hat[0][0][0].size()*MixedEffectsData.getGroupNumber()*i + b_hat[0][0][0].size()*MixedEffectsData.getGroupNumber()*lambdaS_len*j] = b_hat[i][j][h].coeff(k);
+				}
 			}
 		}
 	}
 
 	//return DoF
-	//std::cout << "rans1" << std::endl;
+	//std::cout << "rans16" << std::endl;
 	SET_VECTOR_ELT(result, 16, Rf_allocVector(REALSXP, n_iterations.size()));
 	Real *rans16 = REAL(VECTOR_ELT(result, 16));
 	for(UInt i = 0; i < n_iterations.size(); i++)

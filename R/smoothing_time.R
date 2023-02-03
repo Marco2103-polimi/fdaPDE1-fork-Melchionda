@@ -804,7 +804,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
         stop("Not implemented for !is.null(PDE_parameters). Try Laplacian regularization.")
       }
       
-      ICindx = 16
+      ICindx = 18
       N = nrow(FEMbasis$mesh$nodes)
       M = ifelse(FLAG_PARABOLIC, length(time_mesh) - 1, length(time_mesh) + 2)
       if (is.null(IC) && FLAG_PARABOLIC)
@@ -897,10 +897,6 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
       MixedEffects_output = list(fn.eval = fn.eval, J_minima = J_minima, Sigma.b = Sigma.b, b_i.hat = b_i.hat, n_iterations = n_iterations)
       
       
-      if(!is.numeric(variance.est[1])){
-        variance.est <- NULL 
-      } else if (variance.est[1] < 0) variance.est = NULL
-      
       if (!is.null(lambda.selection.lossfunction)) {
         stderr = sqrt(GCV_ * (sum(!is.na(observations)) - dof) / sum(!is.na(observations)))
         reslist = list(fit.FEM.time = fit.FEM.time,
@@ -908,14 +904,13 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
                        edf = dof, GCV = GCV_, stderr = stderr,
                        bestlambda = bestlambda, ICestimated = ICestimated,
                        bary.locations = bary.locations, fn.eval = fn.eval,
-                       J_minima = J_minima, variance.est = variance.est,
+                       J_minima = J_minima,
                        MixedEffects_output = MixedEffects_output)
       }else{
         reslist = list(fit.FEM.time = fit.FEM.time,
                        PDEmisfit.FEM.time = PDEmisfit.FEM.time, beta = beta,
                        ICestimated = ICestimated, bary.locations = bary.locations,
                        fn.eval = fn.eval, J_minima = J_minima,
-                       variance.est = variance.est,
                        MixedEffects_output = MixedEffects_output)
       }
       return(reslist)

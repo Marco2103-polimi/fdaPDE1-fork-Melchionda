@@ -47,13 +47,6 @@ CPP_smooth.MixedEffects.FEM.time <- function(locations, time_locations, observat
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
   }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-
-  if (is.null(scale.param)) {
-    scale.param <- -1
-  }
 
   if (is.null(lambdaS)) {
     lambdaS <- vector(length = 0)
@@ -147,14 +140,15 @@ CPP_smooth.MixedEffects.FEM.time <- function(locations, time_locations, observat
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[notNAIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[notNAIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
-      
-      group_idsIC = as.factor(group_ids[notNAIC, ])
+      group_idsIC = as.factor(group.ids[notNAIC,])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -175,10 +169,9 @@ CPP_smooth.MixedEffects.FEM.time <- function(locations, time_locations, observat
       optim, lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups, 
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC, 
       PACKAGE = "fdaPDE"
     )
-
     if (nrow(covariates) != 0) {
       betaIC = matrix(data=ICsol[[5]],nrow=ncol(covariatesIC),ncol=length(lambdaSIC))
       IC <- ICsol[[1]][1:nrow(FEMbasis$mesh$nodes), ICsol[[4]] + 1] # best IC
@@ -199,6 +192,20 @@ CPP_smooth.MixedEffects.FEM.time <- function(locations, time_locations, observat
       )
     time_locations <- time_locations[2:nrow(time_locations)]
     observations <- observations[(NobsIC + 1):length(observations)]
+    
+    # fix Mixed Effects with parabolic smoothing
+    if (nrow(rand.effects.covariates) != 0) {
+      rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
+      rand.effects.covariates <- as.matrix(rand.effects.covariates)
+    }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
   }
   IC <- as.matrix(IC)
   storage.mode(IC) <- "double"
@@ -210,13 +217,6 @@ CPP_smooth.MixedEffects.FEM.time <- function(locations, time_locations, observat
   BC$BC_values <- rep(BC$BC_values, M)
   storage.mode(BC$BC_indices) <- "integer"
   storage.mode(BC$BC_values) <- "double"
-  
-  # fix Mixed Effects with parabolic smoothing
-  if (nrow(rand.effects.covariates) != 0) {
-    rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
-    rand.effects.covariates <- as.matrix(rand.effects.covariates)
-  }
-
 
   ## Call C++ function
   bigsol <- .Call(
@@ -284,13 +284,6 @@ CPP_smooth.MixedEffects.FEM.PDE.time <- function(locations, time_locations, obse
     BC$BC_values <- vector(length = 0)
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
-  }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-
-  if (is.null(scale.param)) {
-    scale.param <- -1
   }
 
   if (is.null(lambdaS)) {
@@ -400,14 +393,16 @@ CPP_smooth.MixedEffects.FEM.PDE.time <- function(locations, time_locations, obse
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[1:NobsIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[1:NobsIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
       
-      group_idsIC = as.factor(group_ids[1:NobsIC, ])
+      group_idsIC = as.factor(group.ids[1:NobsIC, ])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -423,7 +418,7 @@ CPP_smooth.MixedEffects.FEM.PDE.time <- function(locations, time_locations, obse
       as.integer(c(0, 1, 1)), lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups, 
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC, 
       PACKAGE = "fdaPDE"
     )
 
@@ -452,6 +447,14 @@ CPP_smooth.MixedEffects.FEM.PDE.time <- function(locations, time_locations, obse
       rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
       rand.effects.covariates <- as.matrix(rand.effects.covariates)
     }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
 
     }
   IC <- as.matrix(IC)
@@ -530,13 +533,6 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locations, o
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
   }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-
-  if (is.null(scale.param)) {
-    scale.param <- -1
-  }
 
   if (is.null(lambdaS)) {
     lambdaS <- vector(length = 0)
@@ -654,14 +650,16 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locations, o
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[notNAIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[notNAIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
       
-      group_idsIC = as.factor(group_ids[notNAIC, ])
+      group_idsIC = as.factor(group.ids[notNAIC, ])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -680,7 +678,7 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locations, o
       as.integer(c(0, 1, 1)), lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups,
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC,
       PACKAGE = "fdaPDE"
     )
     
@@ -711,6 +709,14 @@ CPP_smooth.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locations, o
       rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
       rand.effects.covariates <- as.matrix(rand.effects.covariates)
     }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
   }
   IC <- as.matrix(IC)
   storage.mode(IC) <- "double"
@@ -788,13 +794,6 @@ CPP_smooth.manifold.MixedEffects.FEM.time <- function(locations, time_locations,
     BC$BC_values <- vector(length = 0)
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
-  }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-  
-  if (is.null(scale.param)) {
-    scale.param <- -1
   }
   
   if (is.null(lambdaS)) {
@@ -889,14 +888,16 @@ CPP_smooth.manifold.MixedEffects.FEM.time <- function(locations, time_locations,
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[notNAIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[notNAIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
       
-      group_idsIC = as.factor(group_ids[notNAIC, ])
+      group_idsIC = as.factor(group.ids[notNAIC, ])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -915,7 +916,7 @@ CPP_smooth.manifold.MixedEffects.FEM.time <- function(locations, time_locations,
       optim, lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups, 
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC, 
       PACKAGE = "fdaPDE"
     )
     
@@ -945,6 +946,14 @@ CPP_smooth.manifold.MixedEffects.FEM.time <- function(locations, time_locations,
       rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
       rand.effects.covariates <- as.matrix(rand.effects.covariates)
     }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
   }
   IC <- as.matrix(IC)
   storage.mode(IC) <- "double"
@@ -1021,13 +1030,6 @@ CPP_smooth.volume.MixedEffects.FEM.time <- function(locations, time_locations, o
     BC$BC_values <- vector(length = 0)
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
-  }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-  
-  if (is.null(scale.param)) {
-    scale.param <- -1
   }
   
   if (is.null(lambdaS)) {
@@ -1122,14 +1124,16 @@ CPP_smooth.volume.MixedEffects.FEM.time <- function(locations, time_locations, o
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[notNAIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[notNAIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
       
-      group_idsIC = as.factor(group_ids[notNAIC, ])
+      group_idsIC = as.factor(group.ids[notNAIC, ])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -1148,7 +1152,7 @@ CPP_smooth.volume.MixedEffects.FEM.time <- function(locations, time_locations, o
       optim, lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups, 
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC, 
       PACKAGE = "fdaPDE"
     )
     
@@ -1178,6 +1182,14 @@ CPP_smooth.volume.MixedEffects.FEM.time <- function(locations, time_locations, o
       rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
       rand.effects.covariates <- as.matrix(rand.effects.covariates)
     }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
   }
   IC <- as.matrix(IC)
   storage.mode(IC) <- "double"
@@ -1255,13 +1267,6 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.time <- function(locations, time_location
     BC$BC_values <- vector(length = 0)
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
-  }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-
-  if (is.null(scale.param)) {
-    scale.param <- -1
   }
 
   if (is.null(lambdaS)) {
@@ -1371,14 +1376,16 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.time <- function(locations, time_location
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[1:NobsIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[1:NobsIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
       
-      group_idsIC = as.factor(group_ids[1:NobsIC, ])
+      group_idsIC = as.factor(group.ids[1:NobsIC, ])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -1394,7 +1401,7 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.time <- function(locations, time_location
       as.integer(c(0, 1, 1)), lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups, 
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC, 
       PACKAGE = "fdaPDE"
     )
 
@@ -1423,6 +1430,14 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.time <- function(locations, time_location
       rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
       rand.effects.covariates <- as.matrix(rand.effects.covariates)
     }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
 
     }
   IC <- as.matrix(IC)
@@ -1499,13 +1514,6 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locat
     BC$BC_values <- vector(length = 0)
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
-  }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-
-  if (is.null(scale.param)) {
-    scale.param <- -1
   }
 
   if (is.null(lambdaS)) {
@@ -1624,14 +1632,16 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locat
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[notNAIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[notNAIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
       
-      group_idsIC = as.factor(group_ids[notNAIC, ])
+      group_idsIC = as.factor(group.ids[notNAIC, ])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -1650,7 +1660,7 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locat
       as.integer(c(0, 1, 1)), lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups, 
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC, 
       PACKAGE = "fdaPDE"
     )
     
@@ -1681,6 +1691,14 @@ CPP_smooth.volume.MixedEffects.FEM.PDE.sv.time <- function(locations, time_locat
       rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
       rand.effects.covariates <- as.matrix(rand.effects.covariates)
     }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
   }
   IC <- as.matrix(IC)
   storage.mode(IC) <- "double"
@@ -1761,13 +1779,6 @@ CPP_smooth.graph.MixedEffects.FEM.time <- function(locations, time_locations, ob
     BC$BC_values <- vector(length = 0)
   } else {
     BC$BC_values <- as.vector(BC$BC_values)
-  }
-  if (is.null(mu0)) {
-    mu0 <- matrix(nrow = 0, ncol = 1)
-  }
-  
-  if (is.null(scale.param)) {
-    scale.param <- -1
   }
   
   if (is.null(lambdaS)) {
@@ -1862,14 +1873,16 @@ CPP_smooth.graph.MixedEffects.FEM.time <- function(locations, time_locations, ob
       n.groupsIC <- n.groups
       group.idsIC <- group.ids
     } else {
-      rand.effects.covariatesIC <- covariates[notNAIC, ]
+      rand.effects.covariatesIC <- rand.effects.covariates[notNAIC, ]
       rand.effects.covariatesIC <- as.matrix(rand.effects.covariatesIC)
       storage.mode(rand.effects.covariatesIC) <- "double"
       
-      group_idsIC = as.factor(group_ids[notNAIC, ])
+      group_idsIC = as.factor(group.ids[notNAIC, ])
       group_idsIC_tab = table(group_idsIC)
       n.groupsIC = length(group_idsIC_tab)
-      group.idsIC = unname(group_idsIC_tab)
+      group.idsIC = as.integer(group_idsIC)
+      group.idsIC = group.idsIC- 1
+      group.idsIC = as.matrix(group.idsIC)
       storage.mode(group.idsIC) <-"integer"
       storage.mode(n.groupsIC) <- "integer"
     }
@@ -1888,7 +1901,7 @@ CPP_smooth.graph.MixedEffects.FEM.time <- function(locations, time_locations, ob
       optim, lambdaSIC, DOF.stochastic.realizations,
       DOF.stochastic.seed, DOF.matrix_IC, GCV.inflation.factor,
       lambda.optimization.tolerance,
-      rand.effects.covariates, group.ids, n.groups, 
+      rand.effects.covariatesIC, group.idsIC, n.groupsIC, 
       PACKAGE = "fdaPDE"
     )
     
@@ -1918,6 +1931,14 @@ CPP_smooth.graph.MixedEffects.FEM.time <- function(locations, time_locations, ob
       rand.effects.covariates <- rand.effects.covariates[(NobsIC + 1):nrow(rand.effects.covariates), ]
       rand.effects.covariates <- as.matrix(rand.effects.covariates)
     }
+    group_ids = as.factor(group.ids[(NobsIC + 1):length(group.ids)])
+    group_ids_tab = table(group_ids)
+    n.groups = length(group_ids_tab)
+    group.idsIC = as.integer(group_idsIC)
+    group.idsIC = group.idsIC- 1
+    group.idsIC = as.matrix(group.idsIC)
+    storage.mode(group.idsIC) <-"integer"
+    storage.mode(n.groupsIC) <- "integer"
   }
   IC <- as.matrix(IC)
   storage.mode(IC) <- "double"
