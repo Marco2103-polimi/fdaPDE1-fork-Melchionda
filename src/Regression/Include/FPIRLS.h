@@ -364,7 +364,7 @@ class FPIRLS_MixedEffects : public FPIRLS <InputHandler, ORDER, mydim, ndim> {
 	MatrixXr A_; //!< It contains matrix A
 	std::vector<std::vector<VectorXr>> D_; //!< It contains the current estimate of the precision matrix of the Random Effects for each {lambda_S, lambda_T}
 	std::vector<std::vector<VectorXr>> Sigma_b_; //!< It contains the final estimate of the covariance struction of the Rando Effects for each {lambda_S, lambda_T}
-	Real sigma_sq_hat_; //!< It contains the current estimate of sigma square
+	std::vector<std::vector<Real>> sigma_sq_hat_; //!< It contains the estimates of sigma square
 
 	Real counter = 0;
 	

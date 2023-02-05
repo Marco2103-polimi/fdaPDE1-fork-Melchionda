@@ -570,6 +570,7 @@ FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::FPIRLS_MixedEffects(const 
 	ZtildeTZtilde_.resize(n_groups_);
 	D_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
 	Sigma_b_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+	sigma_sq_hat_.resize(this->lenS_, std::vector<Real>(this->lenT_));
 	
 	// Construct matrices ZTZ and initialize D_ for each lambda
 	initialize_matrices();
@@ -588,6 +589,7 @@ FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::FPIRLS_MixedEffects(const 
 	ZtildeTZtilde_.resize(n_groups_);
 	D_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
 	Sigma_b_.resize(this->lenS_, std::vector<VectorXr>(this->lenT_));
+	sigma_sq_hat_.resize(this->lenS_, std::vector<Real>(this->lenT_));
 	
 	// Construct matrices ZTZ and initialize D_ for each lambda
 	initialize_matrices();
@@ -680,7 +682,7 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_sigma_sq_hat(
 							  (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]  );
 	this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(0,0);
 
-	sigma_sq_hat_ = 0;	
+	sigma_sq_hat_[lambdaS_index][lambdaT_index] = 0;	
 
 	const VectorXr * y = this->inputData_.getObservations();
 	
@@ -697,10 +699,10 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_sigma_sq_hat(
 			MatrixXr X_i = matrix_indexing(this->inputData_.getCovariates(), ids_perm_[i]);
 			res_i -= ( X_i*this->_beta_hat(lambdaS_index,lambdaT_index) );
 		}
-		sigma_sq_hat_ += res_i.dot(res_i);
+		sigma_sq_hat_[lambdaS_index][lambdaT_index] += res_i.dot(res_i);
 	}
 	
-	sigma_sq_hat_ /= (y->size() - this->_dof(lambdaS_index, lambdaT_index));
+	sigma_sq_hat_[lambdaS_index][lambdaT_index] /= (y->size() - this->_dof(lambdaS_index, lambdaT_index));
 }
 
 
@@ -712,7 +714,7 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::build_LTL(const UInt&
 	
 	for(auto i=0; i<n_groups_; i++){
 	
-		LTL_temp += b_hat_[lambdaS_index][lambdaT_index][i]*(b_hat_[lambdaS_index][lambdaT_index][i]).transpose() / sigma_sq_hat_;
+		LTL_temp += b_hat_[lambdaS_index][lambdaT_index][i]*(b_hat_[lambdaS_index][lambdaT_index][i]).transpose() / sigma_sq_hat_[lambdaS_index][lambdaT_index];
 		LTL_temp += ZtildeTZtilde_[i].solve(MatrixXr::Identity(q_, q_));
 	}
 	
@@ -756,13 +758,13 @@ Real FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_J_parametric(
 
 	const VectorXr * y = this->inputData_.getObservations();
 
-	parametric_value -= ( n_groups_*q_ - y->size() ) * std::log(sigma_sq_hat_);
+	parametric_value -= ( n_groups_*q_ - y->size() ) * std::log(sigma_sq_hat_[lambdaS_index][lambdaT_index]);
 	
 	for(auto i=0; i<n_groups_; i++){
 		
 		// log-likelihood of random effects	(completed outside the for cycle)
 		VectorXr Db_i = D_[lambdaS_index][lambdaT_index].asDiagonal() * b_hat_[lambdaS_index][lambdaT_index][i];
-		parametric_value -= sigma_sq_hat_ * ( Db_i ).dot( Db_i );
+		parametric_value -= sigma_sq_hat_[lambdaS_index][lambdaT_index] * ( Db_i ).dot( Db_i );
 		
 	}
 	
@@ -786,7 +788,7 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::additional_estimates(
 			
 			for(auto k=0; k<q_; k++){
 				Sigma_b_[i][j](k) *= D_[i][j](k);
-				Sigma_b_[i][j](k) = 1/Sigma_b_[i][j](k);
+				Sigma_b_[i][j](k) = sigma_sq_hat_[i][j]/Sigma_b_[i][j](k);
 			}
 		}
 	}
