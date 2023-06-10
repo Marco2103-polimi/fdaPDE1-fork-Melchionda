@@ -149,8 +149,14 @@ void GCV_Family<InputCarrier, size>::compute_eps_hat(void)
 template<typename InputCarrier, UInt size>
 void GCV_Family<InputCarrier, size>::compute_SS_res(void)
 {
-        // SS_res = ||eps_hat||^2
-        this->SS_res = this->eps_hat.squaredNorm();
+	if(this->the_carrier.get_Pp()->rows() == 0){
+		// SS_res = ||eps_hat||^2
+		this->SS_res = this->eps_hat.squaredNorm();
+        }
+        else{
+        	// SS_res = || W^{-1/2} eps_hat ||^2
+        	this->SS_res = this->eps_hat.dot( *this->the_carrier.get_Pp() * this->eps_hat );
+        }
 
         // Debugging purpose print
         // Rprintf("SS_res  = %f\n", this->SS_res);
@@ -180,12 +186,7 @@ template<typename InputCarrier, UInt size>
 void GCV_Family<InputCarrier, size>::compute_sigma_hat_sq(void)
 {
         // sigma_hat^2 = SS_res/dor
-		if(this->the_carrier.get_Pp()->rows() == 0){
-			this->sigma_hat_sq = this->SS_res/Real(this->dor);
-		}
-		else{
-			this->sigma_hat_sq = this->eps_hat.dot( *this->the_carrier.get_Pp() * this->eps_hat )/Real(this->dor);
-		}
+	this->sigma_hat_sq = this->SS_res/Real(this->dor);
 
         // Debugging purpose print
         // Rprintf("sigma_hat_sq = %f\n", this->sigma_hat_sq);
