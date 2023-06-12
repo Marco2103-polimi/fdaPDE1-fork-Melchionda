@@ -357,7 +357,7 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
     covariates = covariates, PDE_parameters = PDE_parameters, incidence_matrix = incidence_matrix,
     BC = BC, weights=weights, space_varying = space_varying, ndim = ndim, mydim = mydim,
     FLAG_MASS = FLAG_MASS, FLAG_PARABOLIC = FLAG_PARABOLIC, IC = IC,
-    lambdaS = lambdaS, lambdaT = lambdaT, DOF.matrix = DOF.matrix)
+    lambdaS = lambdaS, lambdaT = lambdaT, DOF.matrix = DOF.matrix, rand.effects.covariates = rand.effects.covariates)
   
   # Further check
   observations<-as.vector(observations)
@@ -404,6 +404,18 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
   # WEIGHTED LEAST SQUARES CANNOT WORK WITH GAM
   if(family != 'gaussian' & !is.null(weights))
     stop("Weighted smoothing is implemented only for 'gaussian' family")
+  
+  # GENERALIZED MIXED EFFECTS ARE NOT IMPLEMENTED
+  if(family != 'gaussian' & !is.null(rand.effects.covariates))
+    stop("Mixed Effects problems are implemented only for 'gaussian' family")
+  
+  # OPTIMIZATION NOT IMPLEMENTED FOR MIXED EFFECTS
+  if(!is.null(rand.effects.covariates) & optim[1]!=0)
+    stop("'lambda.selection.criterion' = 'grid' is the only method implemented for Mixed Effects problems")
+  
+  # WEIGHTED MIXED EFFECTS NOT IMPLEMENTED
+  if(!is.null(rand.effects.covariates) & !is.null(weights))
+    stop("Weighted smoothing is not implemented for Mixed Effects problems")
 
   # FAMILY CHECK
   family_admit = c("binomial", "exponential", "gamma", "poisson", "gaussian", "Gaussian")

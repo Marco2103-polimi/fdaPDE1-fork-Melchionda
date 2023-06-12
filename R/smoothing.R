@@ -426,6 +426,20 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   if(family != 'gaussian' & !is.null(weights))
     stop("Weighted smoothing is implemented only for 'gaussian' family")
   
+  # GENERALIZED MIXED EFFECTS ARE NOT IMPLEMENTED
+  if(family != 'gaussian' & !is.null(rand.effects.covariates))
+    stop("Mixed Effects problems are implemented only for 'gaussian' family")
+  
+  # OPTIMIZATION NOT IMPLEMENTED FOR MIXED EFFECTS
+  if(!is.null(rand.effects.covariates) & optim[1]!=0)
+    stop("'lambda.selection.criterion' = 'grid' is the only method implemented for Mixed Effects problems")
+  
+  # WEIGHTED MIXED EFFECTS NOT IMPLEMENTED
+  if(!is.null(rand.effects.covariates) & !is.null(weights))
+    stop("Weighted smoothing is not implemented for Mixed Effects problems")
+  
+  
+  
   # --> General consistency rules
   if(optim[2]!=0 & optim[3]!=1)
   {
@@ -546,7 +560,7 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
   checkSmoothingParametersSize(locations = locations, observations = observations, FEMbasis = FEMbasis,
     covariates = covariates, PDE_parameters = PDE_parameters, incidence_matrix = incidence_matrix,
     BC = BC, weights = weights, space_varying = space_varying, ndim = ndim, mydim = mydim,
-    lambda = lambda, DOF.matrix = DOF.matrix)
+    lambda = lambda, DOF.matrix = DOF.matrix, rand.effects.covariates = rand.effects.covariates)
 
 
   # Check whether the locations coincide with the mesh nodes (should be put after all the validations)

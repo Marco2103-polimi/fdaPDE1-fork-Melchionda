@@ -214,7 +214,7 @@ checkSmoothingParameters_time<-function(locations = NULL, time_locations=NULL, o
   return(space_varying)
 }
 
-checkSmoothingParametersSize_time<-function(locations = NULL, time_locations = NULL, observations, FEMbasis, time_mesh = NULL, covariates = NULL, PDE_parameters = NULL, incidence_matrix = NULL, BC = NULL, weights = NULL, space_varying, ndim, mydim, FLAG_MASS = FALSE, FLAG_PARABOLIC = FALSE, IC = NULL,  lambdaS = NULL, lambdaT = NULL, DOF.matrix = NULL)
+checkSmoothingParametersSize_time<-function(locations = NULL, time_locations = NULL, observations, FEMbasis, time_mesh = NULL, covariates = NULL, PDE_parameters = NULL, incidence_matrix = NULL, BC = NULL, weights = NULL, space_varying, ndim, mydim, FLAG_MASS = FALSE, FLAG_PARABOLIC = FALSE, IC = NULL,  lambdaS = NULL, lambdaT = NULL, DOF.matrix = NULL, rand.effects.covariates = NULL)
 {
   #################### Parameter Check #########################
   # Observations
@@ -317,6 +317,12 @@ checkSmoothingParametersSize_time<-function(locations = NULL, time_locations = N
   {
     if(nrow(covariates) != nrow(observations)*ncol(observations))
       stop("'covariates' and 'observations' have incompatible size;")
+  }
+  
+  # Random Effects Covariates
+  if(!is.null(rand.effects.covariates)){
+    if(nrow(rand.effects.covariates) != nrow(observations))
+      stop("'rand.effects.covariates' and 'observations' have incompatible size;")
   }
 
   # Incidence matrix

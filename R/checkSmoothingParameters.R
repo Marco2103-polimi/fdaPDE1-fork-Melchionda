@@ -172,7 +172,7 @@ checkSmoothingParameters<-function(locations = NULL, observations, FEMbasis, cov
   return(space_varying)
 }
 
-checkSmoothingParametersSize<-function(locations = NULL, observations, FEMbasis, covariates = NULL, PDE_parameters = NULL, incidence_matrix = NULL, BC = NULL, weights = NULL, space_varying = FALSE, ndim, mydim, lambda = NULL, DOF.matrix = NULL)
+checkSmoothingParametersSize<-function(locations = NULL, observations, FEMbasis, covariates = NULL, PDE_parameters = NULL, incidence_matrix = NULL, BC = NULL, weights = NULL, space_varying = FALSE, ndim, mydim, lambda = NULL, DOF.matrix = NULL, rand.effects.covariates = NULL)
 {
   #################### Parameter Check #########################
   # Observations
@@ -202,6 +202,12 @@ checkSmoothingParametersSize<-function(locations = NULL, observations, FEMbasis,
   if(!is.null(covariates)){
     if(nrow(covariates) != nrow(observations))
       stop("'covariates' and 'observations' have incompatible size;")
+  }
+  
+  #Random Effects Covariates
+  if(!is.null(rand.effects.covariates)){
+    if(nrow(rand.effects.covariates) != nrow(observations))
+      stop("'rand.effects.covariates' and 'observations' have incompatible size;")
   }
   
   # Incidence matrix
