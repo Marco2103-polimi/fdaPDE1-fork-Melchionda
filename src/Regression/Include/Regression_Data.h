@@ -20,7 +20,7 @@ class  RegressionData
 		UInt 		   nRegions_ = 0; 		//!< For areal data.
 		bool 		   arealDataAvg_{}; 		//!< Is areal data averaged ?
 		SpMat	   	   WeightsMatrix_; 		//!< Weighted regression.
-		bool           isGAM = false;
+		bool           	   isFPIRLS = false;
 
 
 		// Design matrix
@@ -179,7 +179,7 @@ class  RegressionData
 		bool getFlagMass(void) const {return flag_mass_;}
 		bool getFlagParabolic(void) const {return flag_parabolic_;}
         bool getFlagIterative(void) const {return flag_iterative_;}
-		bool getisGAM(void) const {return isGAM;}
+		bool getisFPIRLS(void) const {return isFPIRLS;}
 
 		// Search
 		//! A method returning the input search

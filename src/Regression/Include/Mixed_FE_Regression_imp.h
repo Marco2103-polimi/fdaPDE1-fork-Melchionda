@@ -626,7 +626,7 @@ void MixedFERegressionBase<InputHandler>::system_factorize()
 	// First phase: Factorization of matrixNoCov
 	matrixNoCovdec_.compute(matrixNoCov_);
 
-    bool needUpdate = isGAMData ? true : !isUVComputed;
+    bool needUpdate = isFPIRLSData ? true : !isUVComputed;
 
 	if(regressionData_.getCovariates()->rows() != 0 && needUpdate)
 	{ // Needed only if there are covariates, else we can stop before
@@ -744,13 +744,13 @@ void MixedFERegressionBase<InputHandler>::computeDegreesOfFreedom(UInt output_in
 	std::string GCVmethod = optimizationData_.get_DOF_evaluation();
 	switch (GCVmethod == "exact") {
 		case 1:
-			if(this->isIterative & !isGAMData)
+			if(this->isIterative & !isFPIRLSData)
 				Rprintf("Function computeDOFExact_iterative moved to Lambda_optimizer\n");
 			else
 				computeDegreesOfFreedomExact(output_indexS, output_indexT, lambdaS, lambdaT);
 			break;
 		case 0:
-			if(this->isIterative & !isGAMData)
+			if(this->isIterative & !isFPIRLSData)
 				Rprintf("Function computeDOFStochastic_iterative moved to Lambda_optimizer\n");
 			else
 				computeDegreesOfFreedomStochastic(output_indexS, output_indexT, lambdaS, lambdaT);
@@ -1330,7 +1330,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply(void)
 
 	UInt sizeLambdaS;
 	UInt sizeLambdaT;
-	if (!isGAMData)
+	if (!isFPIRLSData)
 	{
 	   sizeLambdaS=1;
 	   sizeLambdaT=1;
@@ -1357,7 +1357,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply(void)
 		{
                         Real lambdaS;
                         Real lambdaT;
-			if(!isGAMData) //at the moment only space and space-time are implemented
+			if(!isFPIRLSData) //at the moment only space and space-time are implemented
 				{
 					lambdaS = optimizationData_.get_current_lambdaS();
 					lambdaT = optimizationData_.get_current_lambdaT();
@@ -1370,7 +1370,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply(void)
 		 		
 			_rightHandSide = rhs;
 
-			if(isGAMData || optimizationData_.get_current_lambdaS()!=optimizationData_.get_last_lS_used() ||
+			if(isFPIRLSData || optimizationData_.get_current_lambdaS()!=optimizationData_.get_last_lS_used() ||
 				optimizationData_.get_current_lambdaT()!=optimizationData_.get_last_lT_used())
 			{
 				if(!regressionData_.isSpaceTime())
@@ -1404,7 +1404,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply(void)
 
 
 			//f Factorization of the system for woodbury decomposition
-			if(isGAMData || optimizationData_.get_current_lambdaS()!=optimizationData_.get_last_lS_used() ||
+			if(isFPIRLSData || optimizationData_.get_current_lambdaS()!=optimizationData_.get_last_lS_used() ||
 				optimizationData_.get_current_lambdaT()!=optimizationData_.get_last_lT_used())
 			{
 				system_factorize();
@@ -1414,7 +1414,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply(void)
 			_solution(s,t) = this->template system_solve(this->_rightHandSide);
 
 			
-			if(optimizationData_.get_loss_function()!="GCV" || isGAMData)
+			if(optimizationData_.get_loss_function()!="GCV" || isFPIRLSData)
 			{
 				_dof(s,t) = -1;
 				_GCV(s,t) = -1;
@@ -1441,7 +1441,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply(void)
                 isUVComputed = false;
 		}
 	}
-	if(!isGAMData &&
+	if(!isFPIRLSData &&
 	(optimizationData_.get_current_lambdaS()!=optimizationData_.get_last_lS_used() ||
 	optimizationData_.get_current_lambdaT()!=optimizationData_.get_last_lT_used()))
 	{
@@ -1464,7 +1464,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply_iterative(void) {
 
     UInt sizeLambdaS;
     UInt sizeLambdaT;
-    if (!isGAMData)
+    if (!isFPIRLSData)
     {
         sizeLambdaS=1;
         sizeLambdaT=1;
@@ -1497,7 +1497,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply_iterative(void) {
             _solution(s, t) = VectorXr::Zero(2 * nnodes);
             Real lambdaS;
             Real lambdaT;
-            if(!isGAMData) //at the moment only space and space-time are implemented
+            if(!isFPIRLSData) //at the moment only space and space-time are implemented
             {
             	lambdaS = optimizationData_.get_current_lambdaS();
             	lambdaT = optimizationData_.get_current_lambdaT();
@@ -1597,7 +1597,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply_iterative(void) {
 
             Rprintf("Solution found after %d iterations (max number of iterations: %d)\n", i, (regressionData_.get_maxiter()+1));
 
-            if(optimizationData_.get_loss_function()!="GCV" || isGAMData)
+            if(optimizationData_.get_loss_function()!="GCV" || isFPIRLSData)
             {
                 _dof(s,t) = -1;
                 _GCV(s,t) = -1;
@@ -1607,7 +1607,7 @@ MatrixXv  MixedFERegressionBase<InputHandler>::apply_iterative(void) {
         }
     }
     
-    if(!isGAMData &&
+    if(!isFPIRLSData &&
 	(optimizationData_.get_current_lambdaS()!=optimizationData_.get_last_lS_used() ||
 	optimizationData_.get_current_lambdaT()!=optimizationData_.get_last_lT_used()))
 	{

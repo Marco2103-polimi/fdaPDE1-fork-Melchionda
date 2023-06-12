@@ -38,7 +38,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
 	threshold_ =  REAL(Rthreshold)[0];
 	initialObservations_ = this->observations_;
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 // PDE
@@ -53,7 +53,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
 	threshold_ =  REAL(Rthreshold)[0];
 	initialObservations_ = this->observations_;
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 // PDE SpaceVarying
@@ -68,7 +68,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
 	threshold_ =  REAL(Rthreshold)[0];
 	initialObservations_ = this->observations_;
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 //Laplace time
@@ -84,7 +84,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
     threshold_ = REAL(Rthreshold_pirls)[0];
     initialObservations_ = this->observations_;
 	initializeWeights();
-    this->isGAM = true;
+    this->isFPIRLS = true;
 }
 
 // PDE time
@@ -100,7 +100,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
     threshold_ = REAL(Rthreshold_pirls)[0];
     initialObservations_ = this->observations_;
 	initializeWeights();
-    this->isGAM = true;
+    this->isFPIRLS = true;
 }
 
 // PDE SpaceVarying time
@@ -116,7 +116,7 @@ RegressionDataGAM<RegressionHandler>::RegressionDataGAM(SEXP Rlocations, SEXP Rb
     threshold_ = REAL(Rthreshold_pirls)[0];
     initialObservations_ = this->observations_;
 	initializeWeights();
-    this->isGAM = true;
+    this->isFPIRLS = true;
 }
 
 
@@ -221,7 +221,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
 	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 // PDE
@@ -240,7 +240,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
 	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 // PDE SpaceVarying
@@ -259,7 +259,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
 	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 //Laplace time
@@ -280,7 +280,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
 	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 // PDE time
@@ -301,7 +301,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
 	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 }
 
 // PDE SpaceVarying time
@@ -322,7 +322,7 @@ RegressionDataMixedEffects<RegressionHandler>::RegressionDataMixedEffects(SEXP R
 	setRandomEffectsCovariates(Rrandom_effects_covariates);
 	setGroupSizes_and_Perm(Rgroup_ids);
 	initializeWeights();
-	this->isGAM = true;
+	this->isFPIRLS = true;
 	}
 
 #endif

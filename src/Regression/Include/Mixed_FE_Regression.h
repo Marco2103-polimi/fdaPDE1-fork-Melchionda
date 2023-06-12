@@ -98,7 +98,7 @@ class MixedFERegressionBase
 		bool isFTComputed = false;
 
 		bool isSpaceVarying = false; //!< used to distinguish whether to use the forcing term u in apply() or not
-		bool isGAMData;
+		bool isFPIRLSData;
 		bool isIterative;
 
 	        // -- SETTERS --
@@ -178,7 +178,7 @@ class MixedFERegressionBase
 		MixedFERegressionBase( const InputHandler & regressionData, OptimizationData & optimizationData,  UInt nnodes_) :
 			N_(nnodes_), M_(1), regressionData_(regressionData), optimizationData_(optimizationData), _dof(optimizationData.get_DOF_matrix())
 			{
-		        isGAMData = regressionData.getisGAM();
+		        isFPIRLSData = regressionData.getisFPIRLS();
 		        isIterative = false;
 			};
 
@@ -186,7 +186,7 @@ class MixedFERegressionBase
 			mesh_time_(mesh_time), N_(nnodes_), M_(regressionData.getFlagParabolic() ? mesh_time.size()-1 : mesh_time.size()-1+MixedSplineRegression<InputHandler>::SPLINE_DEGREE),
 			regressionData_(regressionData), optimizationData_(optimizationData), _dof(optimizationData.get_DOF_matrix())
 			{
-		        isGAMData = regressionData.getisGAM();
+		        isFPIRLSData = regressionData.getisFPIRLS();
 		        isIterative = regressionData.getFlagIterative();
 			};
 
