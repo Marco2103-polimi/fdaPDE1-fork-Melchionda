@@ -196,7 +196,7 @@ class GCV_Exact<InputCarrier, 1>: public GCV_Family<InputCarrier, 1>
                 void set_iter_trS_(Real lambdaS);
 
                 // UTILITIES
-                void LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat);
+                void LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat, bool fl_lmbq = false);
 
                 // GLOBAL UPDATERS
                 void update_matrices(lambda::type<1> lambda);
@@ -301,7 +301,7 @@ class GCV_Exact<InputCarrier, 2>: public GCV_Family<InputCarrier, 2>
                 void set_ddS_and_trddS_mxd_(void);
                 
                 // UTILITIES
-                void LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat);
+                void LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat, bool fl_lmbq = false);
 
                 // GLOBAL UPDATERS
                 void update_matrices(lambda::type<2> lambda);

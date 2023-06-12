@@ -341,14 +341,22 @@ template<typename InputCarrier>
 void GCV_Exact<InputCarrier, 1>::set_S_and_trS_(void)
 {
         this->trS_ = 0.0;
-        this->LeftMultiplybyPsiAndTrace(this->trS_, this->S_, this->V_);
+        
+        if( this->the_carrier.get_Pp()->rows() == 0 )
+        	this->LeftMultiplybyPsiAndTrace(this->trS_, this->S_, this->V_);
+        else
+        	this->LeftMultiplybyPsiAndTrace(this->trS_, this->S_, this->V_, true);
 }
 
 template<typename InputCarrier>
 void GCV_Exact<InputCarrier, 2>::set_S_and_trS_(void)
 {
         this->trS_ = 0.0;
-        this->LeftMultiplybyPsiAndTrace(this->trS_, this->S_, this->V_);
+        
+        if( this->the_carrier.get_Pp()->rows() == 0 )
+        	this->LeftMultiplybyPsiAndTrace(this->trS_, this->S_, this->V_);
+        else
+        	this->LeftMultiplybyPsiAndTrace(this->trS_, this->S_, this->V_, true);
 }
 
 //! Method to set the value of trace of S trS_ in the iterative case
@@ -483,7 +491,7 @@ void GCV_Exact<InputCarrier, 2>::set_ddS_and_trddS_mxd_(void)
  \sa set_S_and_trS_(void), set_dS_and_trdS_(void), set_ddS_and_trddS_(void)
 */
 template<typename InputCarrier>
-void GCV_Exact<InputCarrier, 1>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat)
+void GCV_Exact<InputCarrier, 1>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat, bool fl_lmbq)
 {
         if (this->the_carrier.loc_are_nodes())
         {
@@ -503,35 +511,43 @@ void GCV_Exact<InputCarrier, 1>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixX
 
                 const std::vector<UInt> * kp = this->the_carrier.get_obs_indicesp(); // Get z [observations]
                 for (UInt i = 0; i < this->s; i++)
+                {
                         for (UInt j = 0; j < this->s; j++)
                         {
                                 if (i == j) // diagonal block, also update trace
                                 {
                                         Real v;
-                                        if (this->the_carrier.get_Pp()->rows()==0)
-                                        	v = mat.coeff((*kp)[i], j);
-										else
-											v = this->the_carrier.get_Pp()->row((*kp)[i]) * mat.col(j);
-
-                                        trace += v;
+                                	v = mat.coeff((*kp)[i], j);
+                                	
                                         ret.coeffRef(i,i) += v;
+                                        
+                                        // for weighted regression, I need to compute QS instead of S
+					if( !fl_lmbq )
+                                        	trace += v;
                                 }
                                 else    // just update return matrix
                                 {
-										if (this->the_carrier.get_Pp()->rows()==0)
-											ret.coeffRef(i,j) += mat.coeff((*kp)[i], j);
-										else
-											ret.coeffRef(i,j) += this->the_carrier.get_Pp()->row((*kp)[i]) * mat.col(j);
+					ret.coeffRef(i,j) += mat.coeff((*kp)[i], j);
                                 }
                         }
+                }
+                           
+		// for weighted regression, I need to compute QS instead of S
+		if( fl_lmbq )
+		{
+			ret = this->the_carrier.lmbQ(ret);
+			
+			for (UInt i = 0; i < this->s; i++)
+				trace += ret.coeff(i,i);
+		}
         }
         else
         {
                 // Psi is full, compute matrix and trace directly
-                if(this->the_carrier.get_Pp()->size() == 0)
-                	ret = (*this->the_carrier.get_psip())*mat;
-                else
-                	ret = (*this->the_carrier.get_psip()) * (*this->the_carrier.get_Pp()) * mat;
+        	ret = (*this->the_carrier.get_psip())*mat;
+        	
+		if( fl_lmbq )
+			ret = this->the_carrier.lmbQ(ret);
 
                 for (int i = 0; i < this->s; ++i)
                         trace += ret.coeff(i, i);
@@ -539,7 +555,7 @@ void GCV_Exact<InputCarrier, 1>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixX
 }
 
 template<typename InputCarrier>
-void GCV_Exact<InputCarrier, 2>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat)
+void GCV_Exact<InputCarrier, 2>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixXr & ret, const MatrixXr & mat, bool fl_lmbq)
 {
        /* if (this->the_carrier.loc_are_nodes())
         {
@@ -577,10 +593,10 @@ void GCV_Exact<InputCarrier, 2>::LeftMultiplybyPsiAndTrace(Real & trace, MatrixX
         {
                 */
                 // Psi is full, compute matrix and trace directly
-				if(this->the_carrier.get_Pp()->size() == 0)
-					ret = (*this->the_carrier.get_psip())*mat;
-				else
-					ret = (*this->the_carrier.get_psip()) * (*this->the_carrier.get_Pp()) * mat;
+		ret = (*this->the_carrier.get_psip())*mat;
+        	
+		if( fl_lmbq )
+			ret = this->the_carrier.lmbQ(ret);
 
                 for (int i = 0; i < this->s; ++i)
                         trace += ret.coeff(i, i);
@@ -1027,8 +1043,8 @@ void GCV_Stochastic<InputCarrier, size>::update_dof(lambda::type<size> lambda)
         	{
         		if(this->the_carrier.get_Pp()->rows() == 0)
         			this->USTpsi = this->US_.transpose()*(*this->the_carrier.get_psip());
-						else
-        			this->USTpsi = this->US_.transpose()*(*this->the_carrier.get_Pp())*(*this->the_carrier.get_psip());
+			else
+        			this->USTpsi = this->US_.transpose() * this->the_carrier.lmbQ( *this->the_carrier.get_psip() );
 
         		// Define the first right hand side : | I  0 |^T * psi^T * Q * u
         		this->b = MatrixXr::Zero(2*nnodes, this->US_.cols());
