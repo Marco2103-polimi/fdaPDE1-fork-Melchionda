@@ -270,6 +270,14 @@ void FPIRLS<GAMDataEllipticSpaceVarying,ORDER, mydim, ndim>::apply(){
 
 }
 
+template <UInt ORDER, UInt mydim, UInt ndim>
+void FPIRLS<MixedEffectsDataEllipticSpaceVarying,ORDER, mydim, ndim>::apply(){
+
+  this->isSpaceVarying = true;
+  FPIRLS_Base<MixedEffectsDataEllipticSpaceVarying,ORDER, mydim, ndim>::apply(this->inputData_.getU());
+
+}
+
 /*********** FPIRLS_GAM Methods ************/
 
 // Constructor

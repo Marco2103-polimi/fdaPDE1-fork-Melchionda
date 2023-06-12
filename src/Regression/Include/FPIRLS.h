@@ -143,6 +143,23 @@ class FPIRLS< GAMDataEllipticSpaceVarying, ORDER,  mydim,  ndim>: public FPIRLS_
     virtual void apply();
 };
 
+//! @brief A class used for the FPIRLS_base template specialization: EllipticSpaceVarying case.
+template <UInt ORDER, UInt mydim, UInt ndim>
+class FPIRLS< MixedEffectsDataEllipticSpaceVarying, ORDER,  mydim,  ndim>: public FPIRLS_Base< MixedEffectsDataEllipticSpaceVarying, ORDER,  mydim,  ndim>{
+
+  public:
+
+    FPIRLS(const MeshHandler<ORDER,mydim,ndim>& mesh, MixedEffectsDataEllipticSpaceVarying& inputData, OptimizationData & optimizationData):
+      FPIRLS_Base<MixedEffectsDataEllipticSpaceVarying, ORDER, mydim, ndim>(mesh, inputData, optimizationData){};
+    
+    FPIRLS(const MeshHandler<ORDER,mydim,ndim>& mesh, const std::vector<Real> & mesh_time, MixedEffectsDataEllipticSpaceVarying& inputData, OptimizationData & optimizationData):
+      FPIRLS_Base<MixedEffectsDataEllipticSpaceVarying, ORDER, mydim, ndim>(mesh, mesh_time, inputData, optimizationData){};     
+    
+    virtual ~FPIRLS(){};
+
+    virtual void apply();
+};
+
 
 
 //------------- Generalized Additive Models (GAM) Specification ----------------
