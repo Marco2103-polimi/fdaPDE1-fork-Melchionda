@@ -51,6 +51,7 @@
 #' @param areal.data.avg Boolean. It involves the computation of Areal Data. If \code{TRUE} the areal data are averaged, otherwise not.
 #' @param weights A vector of length #observations with the desired weights to assign to each of the observed data values in a Weighted Regression problem. 
 #' It it is left to NULL, the unweighted version of the Model is fit.
+#' @param normalize_weights Boolean. If it is set to TRUE, weights are normalized by their average value. Otherwise, the value passed by the user is preserved.
 #' @param rand.effects.covariates A #observations-by-#rand.effects.covariates matrix where each row represents the random effects covariates associated with
 #' the corresponding observed data value in \code{observations} and each column is a different covariate. 
 #' It is used in combination with \code{group_ids} to solve a Mixed Effects model.
@@ -346,7 +347,8 @@
 smooth.FEM<-function(locations = NULL, observations, FEMbasis,
                      covariates = NULL, PDE_parameters = NULL, BC = NULL,
                      incidence_matrix = NULL, areal.data.avg = TRUE,
-                     weights = NULL, rand.effects.covariates = NULL, group_ids = NULL,
+                     weights = NULL, normalize_weights = TRUE,
+                     rand.effects.covariates = NULL, group_ids = NULL,
                      search = "tree", bary.locations = NULL,
                      family = "gaussian", mu0 = NULL, scale.param = NULL, threshold.FPIRLS = 0.0002020, max.steps.FPIRLS = 15,
                      lambda.selection.criterion = "grid", DOF.evaluation = NULL, lambda.selection.lossfunction = NULL,
@@ -505,8 +507,13 @@ smooth.FEM<-function(locations = NULL, observations, FEMbasis,
     lambda = as.matrix(lambda)
   if(!is.null(DOF.matrix))
     DOF.matrix = as.matrix(DOF.matrix)
-  if(!is.null(weights))
+  if(!is.null(weights)){
+    # Standardize weights by their mean
+    if(normalize_weights)
+      weights = weights/mean(weights)
+    
     weights = as.matrix(weights)
+  }
   
   ## Mixed effects conversions and builds
   if(!is.null(rand.effects.covariates)){

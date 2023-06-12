@@ -39,6 +39,7 @@ NULL
 #' @param areal.data.avg Boolean. It involves the computation of Areal Data. If \code{TRUE} the areal data are averaged, otherwise not.
 #' @param weights A vector of length #observations with the desired weights to assign to each of the observed data values in a Weighted Regression problem. 
 #' It it is left to NULL, the unweighted version of the Model is fit.
+#' @param normalize_weights Boolean. If it is set to TRUE, weights are normalized by their average value. Otherwise, the value passed by the user is preserved.
 #' @param rand.effects.covariates A #observations-by-#rand.effects.covariates matrix where each row represents the random effects covariates associated with
 #' the corresponding observed data value in \code{observations} and each column is a different covariate. 
 #' It is used in combination with \code{group_ids} to solve a Mixed Effects model.
@@ -159,7 +160,8 @@ NULL
 smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations, FEMbasis, time_mesh=NULL,
                           covariates = NULL, PDE_parameters = NULL,  BC = NULL,
                           incidence_matrix = NULL, areal.data.avg = TRUE,
-                          weights = NULL, rand.effects.covariates = NULL, group_ids = NULL,
+                          weights = NULL, normalize_weights = TRUE,
+                          rand.effects.covariates = NULL, group_ids = NULL,
                           FLAG_MASS = FALSE, FLAG_PARABOLIC = FALSE,FLAG_ITERATIVE = FALSE, threshold = 10^(-4), max.steps = 50, IC = NULL,
                           search = "tree", bary.locations = NULL,
                           family = "gaussian", mu0 = NULL, scale.param = NULL,
@@ -314,6 +316,10 @@ smooth.FEM.time<-function(locations = NULL, time_locations = NULL, observations,
   if(!is.null(lambdaT))
     lambdaT = as.matrix(lambdaT)
   if(!is.null(weights)){
+    # Standardize weights by their mean
+    if(normalize_weights)
+      weights = weights/mean(weights)
+    
     weights = matrix(weights, ncol=1)
   }
   
