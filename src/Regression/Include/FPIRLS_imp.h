@@ -686,10 +686,6 @@ template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_sigma_sq_hat(const UInt& lambdaS_index, const UInt& lambdaT_index)
 {
 
-	this->regression_.computeDegreesOfFreedom(0, 0, (*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
-							  (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]  );
-	this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(0,0);
-
 	sigma_sq_hat_[lambdaS_index][lambdaT_index] = 0;	
 
 	const VectorXr * y = this->inputData_.getObservations();
@@ -710,7 +706,7 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_sigma_sq_hat(
 		sigma_sq_hat_[lambdaS_index][lambdaT_index] += res_i.dot(res_i);
 	}
 	
-	sigma_sq_hat_[lambdaS_index][lambdaT_index] /= (y->size() - this->_dof(lambdaS_index, lambdaT_index));
+	sigma_sq_hat_[lambdaS_index][lambdaT_index] /= y->size();
 }
 
 
@@ -762,8 +758,6 @@ Real FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_J_parametric(
 {
 	Real parametric_value = 0;
 
-	parametric_value += this->_dof(lambdaS_index, lambdaT_index);
-
 	const VectorXr * y = this->inputData_.getObservations();
 
 	parametric_value -= ( n_groups_*q_ - y->size() ) * std::log(sigma_sq_hat_[lambdaS_index][lambdaT_index]);
@@ -772,7 +766,7 @@ Real FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_J_parametric(
 		
 		// log-likelihood of random effects	(completed outside the for cycle)
 		VectorXr Db_i = D_[lambdaS_index][lambdaT_index].asDiagonal() * b_hat_[lambdaS_index][lambdaT_index][i];
-		parametric_value -= sigma_sq_hat_[lambdaS_index][lambdaT_index] * ( Db_i ).dot( Db_i );
+		parametric_value -= ( Db_i ).dot( Db_i ) / sigma_sq_hat_[lambdaS_index][lambdaT_index];
 		
 	}
 	
@@ -806,6 +800,10 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::additional_estimates(
 template <typename InputHandler, UInt ORDER, UInt mydim, UInt ndim>
 void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_GCV(const UInt& lambdaS_index, const UInt& lambdaT_index)
 {
+
+	this->regression_.computeDegreesOfFreedom(0, 0, (*this->optimizationData_.get_LambdaS_vector())[lambdaS_index],
+							  (*this->optimizationData_.get_LambdaT_vector())[lambdaT_index]  );
+	this->_dof(lambdaS_index, lambdaT_index) = this->regression_.getDOF()(0,0);
 	
 	const VectorXr * y = this->inputData_.getObservations();
 	Real GCV_value = 0;
