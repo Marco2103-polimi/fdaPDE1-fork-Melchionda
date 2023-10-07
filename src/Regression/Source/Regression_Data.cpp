@@ -301,6 +301,7 @@ void RegressionData::setWeights(SEXP Rweights)
 {
 	UInt n_obs_ = Rf_length(Rweights);
 	WeightsMatrix_.resize(n_obs_, n_obs_);
+	WeightsMatrix_.reserve(n_obs_);
 
 	for(auto i=0;i<n_obs_;++i)
 	{
