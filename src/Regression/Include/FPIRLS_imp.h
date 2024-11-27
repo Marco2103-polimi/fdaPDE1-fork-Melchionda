@@ -523,14 +523,14 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::initialize_matrices()
 		// Store Z_ of group i
 		Z_[i] = matrix_indexing(this->inputData_.getRandomEfectsCovariates(), ids_perm_[i]);
 		
-		// // M debug
-		// std::cout << "Printing ids_perm_" << std::endl; 
-		// for(int kk=0; kk<ids_perm_.size(); ++kk){
-        //     std::cout << std::endl; 
-        //     for(int jj=0; jj<ids_perm_[kk].size(); ++jj){
-        //         std::cout << ids_perm_[kk][jj] << "; ";  
-        //     }    
-        // }
+		// M debug
+		std::cout << "Printing ids_perm_" << std::endl; 
+		for(int kk=0; kk<ids_perm_.size(); ++kk){
+            std::cout << std::endl; 
+            for(int jj=0; jj<ids_perm_[kk].size(); ++jj){
+                std::cout << ids_perm_[kk][jj] << "; ";  
+            }    
+        }
 		
 		// Compute and store Z_TZ_ of group i
 		ZTZ_[i] = Z_[i].transpose() * Z_[i];
@@ -546,6 +546,17 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::initialize_matrices()
 		}
 		D0(k) = std::sqrt( D0(k)/n_groups_ ) * 3 / 8 ;
 	}	
+	// M debug 
+	std::string filename =  "C:/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MSRPDE/Tests/Test_1/simulations/sim_1/fit/Delta0_melch";
+	std::ofstream file(filename); 
+    for (int ii = 0; ii < D0.size(); ++ii) {
+        file << D0(ii);
+        if (ii < D0.size() - 1) { 
+            file << ",";
+        }
+    }
+    file << "\n"; 
+    file.close(); 
 	
 	// Store it as the current D_ for each lambda to check
 	for(UInt i=0; i<this->optimizationData_.get_size_S() ; i++){
