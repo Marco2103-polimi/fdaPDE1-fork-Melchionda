@@ -160,7 +160,7 @@ bool FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::stopping_criterion(const UInt
   bool do_stop_by_iteration = false;  // Do I need to stop becouse n_it > n_max?
   bool do_stop_by_treshold = false; // Do I need to stop becouse |J(k) - J(k+1)| < treshold?
 
-  if(n_iterations[lambdaS_index][lambdaT_index] > inputData_.get_maxiter()){
+  if(n_iterations[lambdaS_index][lambdaT_index] >= inputData_.get_maxiter()){  // M debug ATT modificato da > a >= per coerenza con noi
     do_stop_by_iteration = true;
   }
 
