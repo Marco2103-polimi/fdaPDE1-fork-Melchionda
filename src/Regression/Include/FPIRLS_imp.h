@@ -74,6 +74,7 @@ void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::apply( const ForcingTerm& u){
     this->optimizationData_.setCurrentLambda(i, j); // set right lambda for the current iteration.
 
     //Rprintf("Start FPIRLS for the lambda number %d \n", i+1);
+	Rprintf("\t n. iterations: %d\n \n", n_iterations[i][j]);
 
     // start the iterative method for the lambda index i
     while(stopping_criterion(i, j)){
@@ -101,7 +102,7 @@ void FPIRLS_Base<InputHandler,ORDER, mydim, ndim>::apply( const ForcingTerm& u){
 
     } //end while
 
-    //Rprintf("\t n. iterations: %d\n \n", n_iterations[i]);
+    Rprintf("\t n. iterations: %d\n \n", n_iterations[i][j]);
 
     _J_minima[i][j] = current_J_values[i][j][0]+current_J_values[i][j][1]; // compute the minimum value of the J fuctional
 
