@@ -547,7 +547,7 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::initialize_matrices()
 		D0(k) = std::sqrt( D0(k)/n_groups_ ) * 3 / 8 ;
 	}	
 	// M debug 
-	std::string filename =  "C:/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MSRPDE/Tests/Test_1/simulations/sim_1/fit/Delta0_melch";
+	std::string filename =  "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MSRPDE/Tests/Test_1/simulations/sim_1/fit/Delta0_melch.csv";
 	std::ofstream file(filename); 
     for (int ii = 0; ii < D0.size(); ++ii) {
         file << D0(ii);
@@ -678,7 +678,7 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_Weights(const
     // std::cout << "Maximum value W: " << maxVal << std::endl;
 	// std::cout << "Sum of all elements: " << totalSum << std::endl;
 	
-	// std::string R_path = "C:/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MSRPDE/Tests/Test_1"; 
+	// std::string R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MSRPDE/Tests/Test_1"; 
 	// std::string solution_path =  R_path + "/simulations/sim_1/fit";
 	// std::ofstream file1(solution_path + "/min_W_melch.csv");
 	// if(file1.is_open()){
