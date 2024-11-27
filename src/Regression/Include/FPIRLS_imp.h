@@ -523,6 +523,13 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::initialize_matrices()
 		// Store Z_ of group i
 		Z_[i] = matrix_indexing(this->inputData_.getRandomEfectsCovariates(), ids_perm_[i]);
 		
+		// M debug
+		std::cout << "Printing ids_perm_" << std::endl; 
+		for(int idx=0; idx<ids_perm_.size(); ++idx){
+			std::cout << ids_perm_[idx] << ";";
+		}
+		std::cout << std::endl;
+		
 		// Compute and store Z_TZ_ of group i
 		ZTZ_[i] = Z_[i].transpose() * Z_[i];
 	}
@@ -638,6 +645,39 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_Weights(const
 		for(auto k=0; k < group_sizes_[i]; k++){
 			this->WeightsMatrix_[lambdaS_index][lambdaT_index][i](k,k) =  1 + this->WeightsMatrix_[lambdaS_index][lambdaT_index][i](k, k);	
 		}
+	}
+
+
+	// M debug 
+    double minVal = std::numeric_limits<double>::max();
+    double maxVal = std::numeric_limits<double>::lowest();
+	double totalSum = 0.0;
+    for (const auto& matrix : WeightsMatrix_) {
+        // Find min and max for each matrix
+        minVal = std::min(minVal, matrix.minCoeff());
+        maxVal = std::max(maxVal, matrix.maxCoeff());
+		totalSum += matrix.sum();
+    }
+    std::cout << "Minimum value W: " << minVal << std::endl;
+    std::cout << "Maximum value W: " << maxVal << std::endl;
+	std::cout << "Sum of all elements: " << totalSum << std::endl;
+	
+	std::string R_path = "C:/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MSRPDE/Tests/Test_1"; 
+	std::string solution_path =  R_path + "/simulations/sim_1/fit";
+	std::ofstream file1(solution_path + "/min_W_melch.csv");
+	if(file1.is_open()){
+		file1 << minVal << "\n"; 
+		file1.close();
+	}
+	std::ofstream file2(solution_path + "/max_W_melch.csv");
+	if(file2.is_open()){
+		file2 << maxVal << "\n"; 
+		file2.close();
+	}
+	std::ofstream file3(solution_path + "/sum_W_melch.csv");
+	if(file3.is_open()){
+		file3 << totalSum << "\n"; 
+		file3.close();
 	}
 
 }
