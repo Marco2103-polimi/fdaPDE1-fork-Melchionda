@@ -525,10 +525,12 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::initialize_matrices()
 		
 		// M debug
 		std::cout << "Printing ids_perm_" << std::endl; 
-		for(int idx=0; idx<ids_perm_.size(); ++idx){
-			std::cout << ids_perm_[idx] << ";";
-		}
-		std::cout << std::endl;
+		for(int kk=0; kk<ids_perm_.size(); ++kk){
+            std::cout << std::endl; 
+            for(int jj=0; jj<ids_perm_[kk].size(); ++jj){
+                std::cout << ids_perm_[kk][jj] << "; ";  
+            }    
+        }
 		
 		// Compute and store Z_TZ_ of group i
 		ZTZ_[i] = Z_[i].transpose() * Z_[i];
@@ -652,12 +654,15 @@ void FPIRLS_MixedEffects<InputHandler,ORDER, mydim, ndim>::compute_Weights(const
     double minVal = std::numeric_limits<double>::max();
     double maxVal = std::numeric_limits<double>::lowest();
 	double totalSum = 0.0;
-    for (const auto& matrix : WeightsMatrix_) {
-        // Find min and max for each matrix
-        minVal = std::min(minVal, matrix.minCoeff());
-        maxVal = std::max(maxVal, matrix.maxCoeff());
-		totalSum += matrix.sum();
-    }
+	for(int ii=0; ii<WeightsMatrix_[lambdaS_index][lambdaT_index].size(); ++ii){
+		for (const auto& matrix : WeightsMatrix_[lambdaS_index][lambdaT_index][ii]) {
+			// Find min and max for each matrix
+			minVal = std::min(minVal, matrix.minCoeff());
+			maxVal = std::max(maxVal, matrix.maxCoeff());
+			totalSum += matrix.sum();
+		}
+	}
+
     std::cout << "Minimum value W: " << minVal << std::endl;
     std::cout << "Maximum value W: " << maxVal << std::endl;
 	std::cout << "Sum of all elements: " << totalSum << std::endl;
